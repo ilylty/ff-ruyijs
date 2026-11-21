@@ -25,7 +25,7 @@ bool ParseFromString(JSContext* cx, unsigned argc, JS::Value* vp) {
   State& state = *FunctionState(args);
   if (!Service(state, args, 0)) return false;
   if (argc < 2) return TypeError(cx, "parseFromString requires two arguments");
-  state.Observe("DOMParser", "parseFromString", int(ApiAccess::Call));
+  auto __p0trace_0 = state.ObserveScoped(cx, args, "DOMParser", "parseFromString", int(ApiAccess::Call));
   DomString markup, type;
   if (!PublicDocumentString(cx, args[0], &markup) || !PublicDocumentString(cx, args[1], &type)) return false;
   ParseKind kind;
@@ -57,7 +57,7 @@ bool SerializeToString(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!argc) return TypeError(cx, "serializeToString requires one argument");
   Wrapper* node = NodeReceiver(cx, args[0]);
   if (!node) return false;
-  state.Observe("XMLSerializer", "serializeToString", int(ApiAccess::Call));
+  auto __p0trace_1 = state.ObserveScoped(cx, args, "XMLSerializer", "serializeToString", int(ApiAccess::Call));
   State& owner = *node->owner;
   DomString text;
   return owner.Check(owner.model.OuterHtml(node->key, &text)) &&
@@ -70,7 +70,7 @@ bool ParseHTMLUnsafe(JSContext* cx, unsigned argc, JS::Value* vp) {
   State& state = *FunctionState(args);
   if (!argc) return TypeError(cx, "parseHTMLUnsafe requires one argument");
   if (!args[0].isString()) return TypeError(cx, "parseHTMLUnsafe requires a string");
-  state.Observe("Document", "parseHTMLUnsafe", int(ApiAccess::Call));
+  auto __p0trace_2 = state.ObserveScoped(cx, args, "Document", "parseHTMLUnsafe", int(ApiAccess::Call));
   DomString markup;
   if (!String(cx, args[0], &markup)) return false;
   Draft draft;

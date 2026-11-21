@@ -25,9 +25,9 @@ bool Read(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto* entry = ControlReceiver(cx, args.thisv(), m.iface);
   if (!entry) return false;
   double value = 0;
+  auto __p0trace_0 = entry->owner->ObserveScoped(cx, args, m.iface, m.name, int(ApiAccess::Read));
   {
     JSAutoRealm realm(cx, entry->owner->page);
-    entry->owner->Observe(m.iface, m.name, int(ApiAccess::Read));
     if (m.dormant) return TypeError(cx, "Public progress member has no initialized implementation");
     if (*m.attr && !entry->owner->Check(entry->owner->model.GaugeValue(entry->key, m.attr, &value))) return false;
   }
@@ -47,9 +47,9 @@ bool Write(JSContext* cx, unsigned argc, JS::Value* vp) {
     if (!JS_IsExceptionPending(cx)) return TypeError(cx, "The number provided is not finite");
     return false;
   }
+  auto __p0trace_1 = entry->owner->ObserveScoped(cx, args, m.iface, m.name, int(ApiAccess::Write));
   {
     JSAutoRealm realm(cx, entry->owner->page);
-    entry->owner->Observe(m.iface, m.name, int(ApiAccess::Write));
     if (m.dormant) return TypeError(cx, "Public progress member has no initialized implementation");
     // Assigning max or value is an attribute write; position is read-only.
     if (m.attr[0] != u'p' &&

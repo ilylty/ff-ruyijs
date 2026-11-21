@@ -4,6 +4,7 @@
 // queue and an aborted signal rejects it before any request is made. The
 // Response object itself is owned by response_object.cpp.
 #include "resource_network/state.h"
+#include "runtime/cf_access_log.h"
 #include "resource_network/request.h"
 #include "resource_network/abort.h"
 #include "resource_network/body.h"
@@ -95,6 +96,32 @@ bool SettleFetch(JSContext* cx, JS::HandleObject target, NativeFetchOutcome outc
   JSAutoRealm realm(cx, promise);
   switch (outcome) {
     case NativeFetchOutcome::Complete: {
+      // ruyitrace records a `response` phase when the fetch settles. The URL and
+      // status are read back off the Response object because that is where the
+      // settled values live by this point.
+      {
+        JS::RootedValue responseUrl(cx);
+        JS::RootedValue responseStatus(cx);
+        std::string urlText;
+        int status = 0;
+        if (response) {
+          if (JS_GetProperty(cx, response, "url", &responseUrl) && responseUrl.isString()) {
+            JS::RootedString urlString(cx, responseUrl.toString());
+            JS::UniqueChars utf8 = JS_EncodeStringToUTF8(cx, urlString);
+            if (utf8) urlText = utf8.get();
+          } else {
+            JS_ClearPendingException(cx);
+          }
+          if (JS_GetProperty(cx, response, "status", &responseStatus) && responseStatus.isNumber()) {
+            status = static_cast<int>(responseStatus.toNumber());
+          } else {
+            JS_ClearPendingException(cx);
+          }
+        }
+        cf_log::transport_record("fetch", "response", response ? &*response : nullptr,
+                                 "GET", urlText.c_str(), "", 0, status, "",
+                                 urlText.c_str(), 0, 0, 0, true, 4, "", "");
+      }
       JS::RootedValue value(cx, JS::ObjectValue(*response));
       return JS_WrapValue(cx, &value) && JS::ResolvePromise(cx, promise, value);
     }
@@ -126,6 +153,12 @@ bool Fetch(JSContext* cx, unsigned argc, JS::Value* vp) {
     return Rejected(cx, error, args.rval());
   }
   if (draft.url.compare(0, 5, "blob:") != 0) {
+    // ruyitrace records the fetch request with method, URL and body before the
+    // network layer runs, so a request that later fails still appears.
+    cf_log::transport_record("fetch", "request", &state, draft.method.c_str(),
+                             draft.url.c_str(), draft.body.c_str(),
+                             static_cast<int>(draft.body.size()), 0, "", draft.url.c_str(),
+                             0, 0, 0, true, 0, draft.bodyType.c_str(), "");
     JS::RootedObject pending(cx, JS::NewPromiseObject(cx, nullptr));
     if (!pending || !FetchNative(state, draft, signal, pending, kSettleFetch)) return false;
     args.rval().setObject(*pending);

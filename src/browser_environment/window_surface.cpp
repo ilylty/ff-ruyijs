@@ -34,7 +34,8 @@ State* Receiver(JSContext* cx, const JS::CallArgs& args, int32_t* slot) {
   // (dom/bindings/BindingUtils.cpp:2863-2874), which this window is. Any other
   // non-matching receiver is still rejected.
   bool is_page = state && (args.thisv().isNullOrUndefined() ||
-                 (args.thisv().isObject() && &args.thisv().toObject() == state->page));
+                 (args.thisv().isObject() &&
+                  UnwrapPageProxy(&args.thisv().toObject()) == state->page));
   if (!state || !is_page) {
     WebKit::FailBrand(cx, args, "Window");
     return nullptr;
@@ -44,7 +45,12 @@ State* Receiver(JSContext* cx, const JS::CallArgs& args, int32_t* slot) {
 bool ScreenField(State& state, uint32_t field, JS::MutableHandleValue result) {
   return state.Read(Kind::Screen, field, ValueType::Integer, result);
 }
-// The content area's screen origin (Firefox mozInnerScreenX/Y): the window
+// The window frame's four scalars come from the "window" group, which defaults
+// each one to the screen measurement this runtime reported before the group
+// existed (see Model::Read). innerWidth/innerHeight stay on the viewport group.
+bool WindowField(State& state, uint32_t field, JS::MutableHandleValue result) {
+  return state.Read(Kind::Window, field, ValueType::Integer, result);
+}// The content area's screen origin (Firefox mozInnerScreenX/Y): the window
 // position plus the window frame border (half the outer/inner width
 // difference) and, vertically, the browser chrome above the content. Firefox
 // trace 20261021-160155: screenX 22, outerWidth 1296, innerWidth 1280 ->
@@ -52,12 +58,14 @@ bool ScreenField(State& state, uint32_t field, JS::MutableHandleValue result) {
 // top window's origin (an offset frame is a recorded deviation, D46).
 bool InnerScreen(State& state, double* x, double* y) {
   JS::RootedValue sx(state.cx), sy(state.cx), ow(state.cx), oh(state.cx), iw(state.cx), ih(state.cx);
-  if (!state.Read(Kind::Screen, 4, ValueType::Integer, &sx) || !state.Read(Kind::Screen, 5, ValueType::Integer, &sy) ||
-      !state.Read(Kind::Screen, 0, ValueType::Integer, &ow) || !state.Read(Kind::Screen, 1, ValueType::Integer, &oh) ||
+  if (!state.Read(Kind::Window, kWindowFieldScreenX, ValueType::Integer, &sx) ||
+      !state.Read(Kind::Window, kWindowFieldScreenY, ValueType::Integer, &sy) ||
+      !state.Read(Kind::Window, kWindowFieldOuterWidth, ValueType::Integer, &ow) ||
+      !state.Read(Kind::Window, kWindowFieldOuterHeight, ValueType::Integer, &oh) ||
       !state.Read(Kind::Viewport, 0, ValueType::Integer, &iw) || !state.Read(Kind::Viewport, 1, ValueType::Integer, &ih))
     return false;
-  // Windows Firefox's frame border is 8px; the profile's outer size is the
-  // screen size, so a smaller configured viewport must not widen the border.
+  // Windows Firefox's frame border is 8px; a frame wider than the configured
+  // content box keeps that border instead of widening with it.
   const double border = std::min(8.0, std::max(0.0, (ow.toNumber() - iw.toNumber()) / 2));
   *x = sx.toNumber() + border;
   *y = sy.toNumber() + std::max(0.0, oh.toNumber() - ih.toNumber() - border);
@@ -82,7 +90,7 @@ bool WindowGetter(JSContext* cx, unsigned argc, JS::Value* vp) {
   State* state = Receiver(cx, args, &slot);
   if (!state) return false;
   const char* member = WindowMemberName(slot);
-  if (member[0]) state->Observe("Window", member, int(ApiAccess::Read));
+  auto __p0trace_0 = state->ObserveScoped(cx, args, "Window", member, int(ApiAccess::Read));
   switch (slot) {
     case kWindowName:
       args.rval().set(state->name);
@@ -99,10 +107,10 @@ bool WindowGetter(JSContext* cx, unsigned argc, JS::Value* vp) {
       return true;
     case kWindowInnerWidth: return ViewportField(*state, false, args.rval());
     case kWindowInnerHeight: return ViewportField(*state, true, args.rval());
-    case kWindowOuterWidth: return ScreenField(*state, 0, args.rval());
-    case kWindowOuterHeight: return ScreenField(*state, 1, args.rval());
-    case kWindowScreenX: return ScreenField(*state, 4, args.rval());
-    case kWindowScreenY: return ScreenField(*state, 5, args.rval());
+    case kWindowOuterWidth: return WindowField(*state, kWindowFieldOuterWidth, args.rval());
+    case kWindowOuterHeight: return WindowField(*state, kWindowFieldOuterHeight, args.rval());
+    case kWindowScreenX: return WindowField(*state, kWindowFieldScreenX, args.rval());
+    case kWindowScreenY: return WindowField(*state, kWindowFieldScreenY, args.rval());
     case kWindowMozInnerScreenX: return InnerScreenField(*state, false, args.rval());
     case kWindowMozInnerScreenY: return InnerScreenField(*state, true, args.rval());
     case kWindowExternal:
@@ -147,7 +155,7 @@ bool WindowSetter(JSContext* cx, unsigned argc, JS::Value* vp) {
   State* state = Receiver(cx, args, &slot);
   if (!state) return false;
   const char* member = WindowMemberName(slot);
-  if (member[0]) state->Observe("Window", member, int(ApiAccess::Write));
+  auto __p0trace_1 = state->ObserveScoped(cx, args, "Window", member, int(ApiAccess::Write));
   switch (slot) {
     case kWindowInnerWidth:
     case kWindowInnerHeight: {
@@ -330,11 +338,25 @@ bool WindowEncoding(JSContext* cx, unsigned argc, JS::Value* vp) {
   int32_t slot = 0;
   State* state = Receiver(cx, args, &slot);
   if (!state) return false;
-  state->Observe("Window", WindowMemberName(slot), int(ApiAccess::Call));
+  auto __p0trace_2 = state->ObserveScoped(cx, args, "Window", WindowMemberName(slot), int(ApiAccess::Call));
   if (slot == kWindowBtoa) return Btoa(*state, args, args.rval());
   if (slot == kWindowAtob) return Atob(*state, args, args.rval());
   return Error(cx, "Window encoding member is not installed");
 }
+// WebIDL receiver check for the Window interface.
+//
+// Kept as strict identity. Firefox rejects a scope object with
+// `__proto__ = window` reading `document` ("get document called on an object
+// that does not implement interface Window"), so accepting a prototype-chain
+// match would let ruyijs run code the real browser refuses.
+bool IsGlobalReceiver(State& state, const JS::CallArgs& args) {
+  JS::RootedValue thisv(state.cx, args.thisv());
+  if (thisv.isNullOrUndefined()) {
+    return true;
+  }
+  return thisv.isObject() && &thisv.toObject() == state.page;
+}
+
 // The selected WindowOrWorkerGlobalScope members on WorkerGlobalScope.prototype:
 // the receiver is the Worker global (or undefined/null, the callee's global).
 bool WorkerEncoding(JSContext* cx, unsigned argc, JS::Value* vp) {
@@ -342,9 +364,10 @@ bool WorkerEncoding(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto* state = static_cast<State*>(js::GetFunctionNativeReserved(&args.callee(), 0).toPrivate());
   const int32_t slot = js::GetFunctionNativeReserved(&args.callee(), 1).toInt32();
   if (!state || !state->worker || (!args.thisv().isNullOrUndefined() &&
-      (!args.thisv().isObject() || &args.thisv().toObject() != state->page)))
+      (!args.thisv().isObject() ||
+       UnwrapPageProxy(&args.thisv().toObject()) != state->page)))
     return WebKit::FailBrand(cx, args, "WorkerGlobalScope");
-  state->Observe("WorkerGlobalScope", WindowMemberName(slot), int(ApiAccess::Call));
+  auto __p0trace_3 = state->ObserveScoped(cx, args, "WorkerGlobalScope", WindowMemberName(slot), int(ApiAccess::Call));
   if (slot == kWindowBtoa) return Btoa(*state, args, args.rval());
   if (slot == kWindowAtob) return Atob(*state, args, args.rval());
   if (slot == kWindowStructuredClone) return StructuredClone(*state, args, args.rval());
@@ -357,7 +380,7 @@ bool WindowCloning(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!state) return false;
   if (slot != kWindowStructuredClone)
     return Error(cx, "Window cloning member is not installed");
-  state->Observe("Window", "structuredClone", int(ApiAccess::Call));
+  auto __p0trace_4 = state->ObserveScoped(cx, args, "Window", "structuredClone", int(ApiAccess::Call));
   return StructuredClone(*state, args, args.rval());
 }
 struct WindowAccessorSpec { const char* name; int32_t slot; bool writable; };

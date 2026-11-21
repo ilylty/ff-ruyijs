@@ -1,5 +1,7 @@
 #include "resource_network/async_http_internal.h"
+#include "runtime/http_trace.h"
 #include <algorithm>
+#include <cstring>
 #include <limits>
 #include <new>
 #include <utility>
@@ -89,6 +91,31 @@ Status AsyncHttp::Admit(const std::shared_ptr<AsyncHttpSource>& source,
 void AsyncHttp::Start(const std::string& method, const std::string& url, const HeaderPairs& headers,
     const std::string& body, RedirectMode redirect, const HttpOptions& options, Done done) {
   AsyncHttpTicket ticket;
+  // HTTP packet tracing (runtime/http_trace.h). Paired request/response records
+  // in ruyitrace's shape; a no-op unless RUYIJS_DOM_HTTP_PACKET_TRACE is set.
+  // The initiator already distinguishes fetch / XHR / beacon from a navigation,
+  // so the index can carry ruyitrace's requestKind instead of a constant.
+  const char* traceKind = "document";
+  if (options.initiator && *options.initiator) {
+    if (std::strcmp(options.initiator, "fetch") == 0) traceKind = "fetch";
+    else if (std::strcmp(options.initiator, "xmlhttprequest") == 0) traceKind = "xhr";
+    else if (std::strcmp(options.initiator, "beacon") == 0) traceKind = "fetch";
+    else if (options.navigation) traceKind = "subdocument";
+  } else if (options.navigation) {
+    traceKind = "document";
+  }
+  const uint64_t traceId = http_trace::BeginRequest(method, url, headers, body, traceKind);
+  if (traceId) {
+    Done traced = [id = traceId, requestURL = url, done = std::move(done)](bool ok, HttpResult&& result) mutable {
+      // Mirror the synchronous path: fall back to the request URL when the
+      // transport reported no redirect target.
+      const std::string& finalURL = result.finalURL.empty() ? requestURL : result.finalURL;
+      http_trace::EndRequest(id, result.status, result.statusText, result.headers,
+                             result.body, finalURL, result.protocol, result.error);
+      if (done) done(ok, std::move(result));
+    };
+    done = std::move(traced);
+  }
   auto status = Admit(root_, {method, url, headers, body, redirect, options}, {}, std::move(done), &ticket);
   // Legacy void admission already propagated allocation failure. It must never
   // invoke an image callback synchronously or discard an unadmitted callback.

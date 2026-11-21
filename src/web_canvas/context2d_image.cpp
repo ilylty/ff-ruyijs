@@ -1,5 +1,6 @@
 // getImageData and putImageData. Both read and write the one RGBA store the
 // canvas binding owns, so the pixels toDataURL encodes are the same bytes.
+#include "runtime/cf_access_log.h"
 #include "web_canvas/internal.h"
 #include "web_canvas/realm.h"
 
@@ -31,7 +32,8 @@ bool GetImageData(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto args = JS::CallArgsFromVp(argc, vp);
   State& state = *detail::Self(args);
   JS::RootedObject self(cx);
-  if (!detail::ContextReceiver(cx, args, &self)) return false;
+  if (!detail::ContextReceiver(cx, args, &self)) return false;  cf_log::observe("CanvasRenderingContext2D", "getImageData", 2);
+
   int32_t sx = 0, sy = 0, sw = 0, sh = 0;
   if (!detail::ToLong(cx, args.get(0), &sx) || !detail::ToLong(cx, args.get(1), &sy) ||
       !detail::ToLong(cx, args.get(2), &sw) || !detail::ToLong(cx, args.get(3), &sh))

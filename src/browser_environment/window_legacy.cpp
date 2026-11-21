@@ -87,7 +87,7 @@ bool LegacyMethod(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto args = JS::CallArgsFromVp(argc, vp);
   WindowLegacyState& w = Self(args);
   const int member = WebKit::Slot(args);
-  w.env.Observe("Window", kNames[member], int(ApiAccess::Call));
+  auto __p0trace_0 = w.env.ObserveScoped(cx, args, "Window", kNames[member], int(ApiAccess::Call));
   JS::RootedString text(cx);
   switch (member) {
     case mScrollByLines:
@@ -116,7 +116,7 @@ bool LegacyGetter(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto args = JS::CallArgsFromVp(argc, vp);
   WindowLegacyState& w = Self(args);
   const int member = WebKit::Slot(args);
-  w.env.Observe("Window", kNames[member], int(ApiAccess::Read));
+  auto __p0trace_1 = w.env.ObserveScoped(cx, args, "Window", kNames[member], int(ApiAccess::Read));
   switch (member) {
     case mStatus: {
       JSString* s = JS_NewStringCopyUTF8N(cx, JS::UTF8Chars(w.status.data(), w.status.size()));
@@ -142,7 +142,7 @@ bool LegacySetter(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto args = JS::CallArgsFromVp(argc, vp);
   WindowLegacyState& w = Self(args);
   const int member = WebKit::Slot(args);
-  w.env.Observe("Window", kNames[member], int(ApiAccess::Write));
+  auto __p0trace_2 = w.env.ObserveScoped(cx, args, "Window", kNames[member], int(ApiAccess::Write));
   args.rval().setUndefined();
   if (member == mStatus) {
     JS::RootedString text(cx, JS::ToString(cx, args.get(0)));

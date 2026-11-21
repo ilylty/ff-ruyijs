@@ -1,4 +1,5 @@
 #include "runtime/runtime_internal.h"
+#include "runtime/pro_standalone_trace.h"
 #include "runtime/pipe.h"
 #include "runtime/host_bridge.h"
 #include "runtime/host_values.h"
@@ -168,6 +169,7 @@ bool Serve(JSContext* cx, TopLevel& top,
       }
     } else if (success && operation == "close") {
       closing = true;
+      ruyijs::pro_trace::Stop();
       checkpoint(cx);
     } else {
       if (success) JS_ReportErrorASCII(cx, "Unknown ruyijs RPC operation");

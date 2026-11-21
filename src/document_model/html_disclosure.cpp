@@ -31,9 +31,9 @@ bool Read(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!entry) return false;
   auto& state = *entry->owner;
   JS::RootedValue result(cx);
+  auto __p0trace_0 = state.ObserveScoped(cx, args, p.iface, p.name, int(ApiAccess::Read));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe(p.iface, p.name, int(ApiAccess::Read));
     if (p.kind == Dormant) return TypeError(cx, "Public slot member has no initialized implementation");
     std::optional<DomString> attr; DomString text;
     if (p.kind == ReturnValue) {
@@ -58,9 +58,9 @@ bool Write(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (p.kind != Open && !DisclosureString(cx, args.get(0), &text)) return false;
   const bool present = JS::ToBoolean(args.get(0));
   auto& state = *entry->owner;
+  auto __p0trace_1 = state.ObserveScoped(cx, args, p.iface, p.name, int(ApiAccess::Write));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe(p.iface, p.name, int(ApiAccess::Write));
     auto status = p.kind == ReturnValue ? state.model.SetDialogReturnValue(entry->key, text)
         : p.kind == Name ? state.model.SetAttribute(entry->key, u"name", text)
         : present ? state.model.SetAttribute(entry->key, u"open", u"")
@@ -80,9 +80,9 @@ bool Dialog(JSContext* cx, unsigned argc, JS::Value* vp) {
     if (!DisclosureString(cx, args.get(0), &*value)) return false;
   }
   auto& state = *entry->owner;
+  auto __p0trace_2 = state.ObserveScoped(cx, args, "HTMLDialogElement", action == 0 ? "show" : action == 1 ? "showModal" : "close", int(ApiAccess::Call));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe("HTMLDialogElement", action == 0 ? "show" : action == 1 ? "showModal" : "close", int(ApiAccess::Call));
     if (!state.Check(state.model.DialogAction(entry->key, action == 2, value))) return false;
   }
   args.rval().setUndefined(); return true;

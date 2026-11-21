@@ -21,7 +21,7 @@ const char* const kNames[] = {
 const char16_t* const kAttributes[] = {u"width", u"height", u"src"};
 Wrapper* ImageReceiver(JSContext* cx, const JS::CallArgs& args) {
   JS::RootedObject object(cx, args.thisv().isObject()
-      ? js::CheckedUnwrapStatic(&args.thisv().toObject()) : nullptr);
+      ? js::CheckedUnwrapStatic(UnwrapPageProxy(&args.thisv().toObject())) : nullptr);
   Wrapper* entry = object && JS::GetClass(object) == &kNodeClass
       ? static_cast<Wrapper*>(JS::GetReservedSlot(object, 0).toPrivate()) : nullptr;
   if (!entry || entry->dead || !entry->owner) {
@@ -81,9 +81,9 @@ bool Get(JSContext* cx, unsigned argc, JS::Value* vp) {
   State& state = *entry->owner;
   int field = FunctionSlot(args);
   std::optional<DomString> raw;
+  auto __p0trace_0 = state.ObserveScoped(cx, args, "HTMLImageElement", kNames[field], int(ApiAccess::Read));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe("HTMLImageElement", kNames[field], int(ApiAccess::Read));
     if (field <= Src || field == Complete) {
       if (!state.Check(state.model.GetAttribute(entry->key,
           kAttributes[field == Complete ? Src : field], &raw))) return false;
@@ -118,7 +118,7 @@ bool Set(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (field == Src ? !String(cx, args.get(0), &text) :
                     !JS::ToUint32(cx, args.get(0), &number)) return false;
   JSAutoRealm realm(cx, state.page);
-  state.Observe("HTMLImageElement", kNames[field], int(ApiAccess::Write));
+  auto __p0trace_1 = state.ObserveScoped(cx, args, "HTMLImageElement", kNames[field], int(ApiAccess::Write));
   if (field == Src ? !state.Check(state.model.SetAttribute(entry->key, u"src", text)) :
                     !Dimension(state, entry->key, field, number)) return false;
   args.rval().setUndefined();

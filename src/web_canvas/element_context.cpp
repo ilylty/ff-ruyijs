@@ -1,6 +1,7 @@
 // getContext, toDataURL and toBlob, plus the one bitmap each canvas owns. The
 // context and the bitmap hang off the realm-owned binding list, never off a
 // second tree or a JS-side cache.
+#include "runtime/cf_access_log.h"
 #include "web_canvas/internal.h"
 
 #include "js/PropertyAndElement.h"
@@ -47,7 +48,8 @@ bool EnsureBitmap(State& state, JS::HandleObject canvas, CanvasBinding** out) {
 
 bool CanvasGetContext(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto args = JS::CallArgsFromVp(argc, vp);
-  State& state = *detail::Self(args);
+  State& state = *detail::Self(args);  cf_log::observe("HTMLCanvasElement", "getContext", 2);
+
   JS::RootedObject self(cx);
   if (!detail::CanvasReceiver(state, args.thisv(), &self, &args)) return false;
   if (args.length() == 0) return WebKit::Fail(cx, "getContext requires a context type");
@@ -90,7 +92,8 @@ bool CanvasGetContext(JSContext* cx, unsigned argc, JS::Value* vp) {
 }
 
 bool CanvasToDataURL(JSContext* cx, unsigned argc, JS::Value* vp) {
-  auto args = JS::CallArgsFromVp(argc, vp);
+  auto args = JS::CallArgsFromVp(argc, vp);  cf_log::observe("HTMLCanvasElement", "toDataURL", 2);
+
   State& state = *detail::Self(args);
   JS::RootedObject self(cx);
   if (!detail::CanvasReceiver(state, args.thisv(), &self, &args)) return false;
@@ -112,7 +115,8 @@ bool CanvasToDataURL(JSContext* cx, unsigned argc, JS::Value* vp) {
 }
 
 bool CanvasToBlob(JSContext* cx, unsigned argc, JS::Value* vp) {
-  auto args = JS::CallArgsFromVp(argc, vp);
+  auto args = JS::CallArgsFromVp(argc, vp);  cf_log::observe("HTMLCanvasElement", "toBlob", 2);
+
   State& state = *detail::Self(args);
   JS::RootedObject self(cx);
   if (!detail::CanvasReceiver(state, args.thisv(), &self, &args)) return false;

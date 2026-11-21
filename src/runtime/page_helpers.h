@@ -2,8 +2,19 @@
 #define RUYIJS_PAGE_HELPERS_H
 #include "js/RootingAPI.h"
 #include "js/ValueArray.h"
+#include "js/Proxy.h"
 
 namespace ruyijs {
+// The page global is exposed to script through a real Proxy (WindowProxy).
+// Native DOM/WebIDL brand checks compare `this` with the stored bare global,
+// so unwrap the page Proxy before that comparison.
+inline JSObject* UnwrapPageProxy(JSObject* object) {
+  if (object && js::IsProxy(object)) {
+    const JS::Value& priv = js::GetProxyPrivate(object);
+    if (priv.isObject()) return &priv.toObject();
+  }
+  return object;
+}
 class PageHelpers final {
  public:
   PageHelpers(JSContext* cx, JS::HandleObject page);

@@ -45,9 +45,9 @@ bool Get(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!entry) return false;
   auto& state = *entry->owner;
   JS::RootedValue result(cx);
+  auto __p0trace_0 = state.ObserveScoped(cx, args, p.iface, p.name, int(ApiAccess::Read));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe(p.iface, p.name, int(ApiAccess::Read));
     DomString text; std::optional<DomString> attr;
     bool flag = false; uint32_t number = 0;
     const bool select = !std::strcmp(p.iface, "HTMLSelectElement");
@@ -133,9 +133,9 @@ bool Set(JSContext* cx, unsigned argc, JS::Value* vp) {
     if (!JS::ToInt32(cx, args.get(0), &index)) return false;
   } else if (!String(cx, args.get(0), &text)) return false;
   auto& state = *entry->owner;
+  auto __p0trace_1 = state.ObserveScoped(cx, args, p.iface, p.name, int(ApiAccess::Write));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe(p.iface, p.name, int(ApiAccess::Write));
     Status status;
     switch (p.kind) {
       case Zero: case MinusOne: case Empty: break;

@@ -26,9 +26,9 @@ bool Get(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!entry) return false;
   auto& state = *entry->owner;
   JS::RootedValue result(cx);
+  auto __p0trace_0 = state.ObserveScoped(cx, args, "HTMLTextAreaElement", p.name, int(ApiAccess::Read));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe("HTMLTextAreaElement", p.name, int(ApiAccess::Read));
     DomString text; std::optional<DomString> attr;
     if (p.kind == Null) result.setNull();
     else if (p.kind == Form) { if (!ControlForm(*entry, &result)) return false; }
@@ -79,9 +79,9 @@ bool Set(JSContext* cx, unsigned argc, JS::Value* vp) {
     JS::RootedValue numeric(cx, JS::Int32Value(length));
     if (!String(cx, numeric, &text)) return false;
   } else if (!(p.kind == ValueText && args.get(0).isNull()) && !ControlString(cx, args.get(0), &text)) return false;
+  auto __p0trace_1 = state.ObserveScoped(cx, args, "HTMLTextAreaElement", p.name, int(ApiAccess::Write));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe("HTMLTextAreaElement", p.name, int(ApiAccess::Write));
     if (p.kind == ValueText) {
       if (!state.Check(state.model.SetTextareaValue(entry->key, text))) return false;
     } else if (p.kind == Default) {

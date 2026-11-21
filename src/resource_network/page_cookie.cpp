@@ -1,5 +1,6 @@
 #include "resource_network/state.h"
 #include "resource_network/page_cookie_store.h"
+#include "runtime/cf_access_log.h"
 #include "runtime/page_helpers.h"
 #include "js/CallAndConstruct.h"
 #include "js/PropertyDescriptor.h"
@@ -27,6 +28,32 @@ bool Get(JSContext* cx,unsigned argc,JS::Value* vp) {
   s.Observe("Document","cookie",int(ApiAccess::Read));
   const double now=s.cookieClock?s.cookieClock(s.cookieClockContext):0;
   if(!Report(cx,CookieJoined(s.store,url,now,false,&joined)))return false;
+  {
+    // cookieReads carries the parse result rather than a raw string: the whole
+    // jar is what the page observed.
+    std::string resultJson = "[";
+    size_t start = 0;
+    int count = 0;    while (start <= joined.size() && !joined.empty()) {
+      const size_t end = joined.find("; ", start);
+      const std::string piece = joined.substr(start, end == std::string::npos ? std::string::npos : end - start);
+      if (!piece.empty()) {
+        if (count) resultJson += ",";
+        const size_t eq = piece.find('=');
+        std::string cname = eq == std::string::npos ? piece : piece.substr(0, eq);
+        std::string cvalue = eq == std::string::npos ? "" : piece.substr(eq + 1);
+        resultJson += "{\"name\":\"" + cname + "\",\"value\":\"" + cvalue + "\"}";
+        ++count;
+      }
+      if (end == std::string::npos) break;
+      start = end + 2;
+    }
+    resultJson += "]";
+    cf_log::cookie_record("cookieReads", "document.cookie", url.c_str(), "", "", "",
+                          joined.c_str(), count, resultJson.c_str());
+    // The store-level companion record ruyitrace emits for the same read.
+    cf_log::cookie_record("cookieOps", "storage", url.c_str(), "", "", "",
+                          joined.c_str(), count, nullptr);
+  }
   JS::RootedString value(cx,DecodeBodyText(cx,joined));
   if(!value)return false;args.rval().setString(value);return true;
 }
@@ -38,11 +65,23 @@ bool Set(JSContext* cx,unsigned argc,JS::Value* vp) {
   if(!EncodeBodyText(cx,args[0],&text))return false;
   s.Observe("Document","cookie",int(ApiAccess::Write));
   const double now=s.cookieClock?s.cookieClock(s.cookieClockContext):0;
+  {
+    // cookieWrites carries the parsed name/value plus the raw assignment text.
+    const size_t eq = text.find('=');
+    const std::string cname = eq == std::string::npos ? text : text.substr(0, eq);
+    const std::string cvalue = eq == std::string::npos ? "" : text.substr(eq + 1);
+    std::string head = eq == std::string::npos ? text : text.substr(0, eq + 1 + 0);
+    cf_log::cookie_record("cookieWrites", "document.cookie", url.c_str(), "",
+                          cname.c_str(), cvalue.c_str(), text.c_str(), 1, nullptr);
+    // ruyitrace records the assignment twice: once as the script write and once as
+    // the store-level attempt with its validation verdict.
+    cf_log::cookie_record("cookieSetAttempts", "document.cookie", url.c_str(), "",
+                          cname.c_str(), cvalue.c_str(), text.c_str(), 1, nullptr);
+  }
   // A document.cookie write changes the one jar, so window.cookieStore reports it
   // like its own set: its change event is queued as this realm's next task.
   CookieChangeSet change;
-  if(!Report(cx,CookieAssign(s.store,url,text,now,false,"",false,&change)))return false;
-  if(!PostCookieChange(s,change))return false;
+  if(!Report(cx,CookieAssign(s.store,url,text,now,false,"",false,&change)))return false;  if(!PostCookieChange(s,change))return false;
   args.rval().setUndefined();return true;
 }
 }

@@ -6,6 +6,8 @@
 #include "js/Realm.h"
 #include "js/StableStringChars.h"
 #include "js/String.h"
+#include <cstring>
+#include "runtime/cf_access_log.h"
 namespace ruyijs::document_model {
 static bool Error(JSContext* cx, JSExnType type, const char* message) {
   JS::RootedString text(cx, JS_NewStringCopyZ(cx, message));
@@ -40,6 +42,10 @@ bool Value(JSContext* cx, const std::optional<DomString>& text, JS::MutableHandl
   if (!text) { result.setNull(); return true; }
   return Value(cx, DomStringView(*text), result);
 }
+// Member access records are emitted by the TracedNative wrapper installed in
+// factory.cpp::State::Function, whose scope spans the whole native call and can
+// therefore read args.rval(). Emitting a second record here would duplicate
+// every DOM access and leave the value fields null.
 State* FunctionState(const JS::CallArgs& args) {
   return static_cast<State*>(js::GetFunctionNativeReserved(&args.callee(), 0).toPrivate());
 }

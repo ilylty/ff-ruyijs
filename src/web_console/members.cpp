@@ -6,6 +6,7 @@
 #include "web_console/internal.h"
 #include "web_console/render.h"
 #include "runtime/page_helpers.h"
+#include "runtime/standalone_trace.h"
 #include "jsapi.h"
 #include "js/CallAndConstruct.h"
 #include "js/Conversions.h"
@@ -70,6 +71,10 @@ bool Emit(State& state, const MethodDef& def, int indent, std::string text,
 
 bool Perform(State& state, const MethodDef& def, const JS::CallArgs& args) {
   JSContext* cx = state.cx;
+  // ruyijs standalone trace: report the call before doing anything, so a member
+  // that throws or short-circuits still appears in the trace.
+  JS::CallArgs mutableArgs = args;
+  ruyijs::trace::ConsoleCall(cx, def.name, mutableArgs);
   const int indent = static_cast<int>(state.groups.size());
   switch (def.kind) {
     case kAssert:

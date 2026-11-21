@@ -29,9 +29,9 @@ bool Call(JSContext* cx, unsigned argc, JS::Value* vp) {
     if (std::isfinite(number) && std::trunc(number) == number && number >= INT32_MIN && number <= INT32_MAX) step = number;
   }
   uint32_t flags = 0;
+  auto __p0trace_0 = state.ObserveScoped(cx, args, "HTMLInputElement", kNames[method], int(ApiAccess::Call));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe("HTMLInputElement", kNames[method], int(ApiAccess::Call));
     if (method == Check || method == Report) {
       if (!state.Check(state.model.ControlValidation(entry->key, &flags))) return false;
     } else if (method == Custom) {

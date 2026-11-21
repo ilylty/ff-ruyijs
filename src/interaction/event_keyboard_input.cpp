@@ -1,4 +1,5 @@
 #include "interaction/event_keyboard.h"
+#include "runtime/page_helpers.h"
 #include "js/Conversions.h"
 #include "js/Object.h"
 #include "js/PropertyAndElement.h"
@@ -9,7 +10,8 @@ namespace ruyijs::interaction {
 bool KeyboardView(JSContext* cx, JS::HandleValue input, JS::MutableHandleValue out) {
   out.setNull();
   if (input.isNullOrUndefined()) return true;
-  JS::RootedObject object(cx, input.isObject() ? js::CheckedUnwrapStatic(&input.toObject()) : nullptr);
+  JS::RootedObject object(cx, input.isObject()
+      ? UnwrapPageProxy(js::CheckedUnwrapStatic(&input.toObject())) : nullptr);
   for (State* state = activeState; object && state; state = state->previous) {
     if (state->cx == cx && state->page == object) { out.set(input); return true; }
   }

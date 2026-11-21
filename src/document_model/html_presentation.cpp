@@ -26,9 +26,9 @@ bool Read(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!entry) return false;
   State& owner = *entry->owner;
   JS::RootedValue result(cx);
+  auto __p0trace_0 = owner.ObserveScoped(cx, args, "HTMLElement", property.name, int(ApiAccess::Read));
   {
     JSAutoRealm realm(cx, owner.page);
-    owner.Observe("HTMLElement", property.name, int(ApiAccess::Read));
     std::optional<DomString> text;
     if (!owner.Check(property.kind == OuterText ? owner.model.TextContent(entry->key, &text)
         : owner.model.GetAttribute(entry->key, property.attribute, &text))) return false;
@@ -70,9 +70,9 @@ bool Write(JSContext* cx, unsigned argc, JS::Value* vp) {
   else if (property.kind != Boolean && !Convert(cx, args[0], property.kind, &text, &failed)) return false;
   JS::AutoSaveExceptionState pending(cx);
   State& owner = *entry->owner;
+  auto __p0trace_1 = owner.ObserveScoped(cx, args, "HTMLElement", property.name, int(ApiAccess::Write));
   {
     JSAutoRealm realm(cx, owner.page);
-    owner.Observe("HTMLElement", property.name, int(ApiAccess::Write));
     const auto status = property.kind == OuterText ? owner.model.SetTextContent(entry->key, text)
         : property.kind == Boolean && !present ? owner.model.RemoveAttribute(entry->key, property.attribute)
         : owner.model.SetAttribute(entry->key, property.attribute, text);
@@ -86,7 +86,7 @@ bool Call(JSContext* cx, unsigned argc, JS::Value* vp) {
   State& function = *FunctionState(args);
   auto* entry = HTMLReceiver(cx, args.thisv(), function, &args);
   if (!entry) return false;
-  entry->owner->Observe("HTMLElement", methods[method], int(ApiAccess::Call));
+  auto __p0trace_0 = entry->owner->ObserveScoped(cx, args, "HTMLElement", methods[method], int(ApiAccess::Call));
   if (method == 2) args.rval().setBoolean(false);
   else args.rval().setUndefined();
   return true;

@@ -65,7 +65,8 @@ void RunHostedSession(JSContext* cx, SessionRecord* record, Checkpoint checkpoin
 // the named pipe; it installs the restricted worker realm and serves the pipe.
 bool RunWorker(JSContext* cx, js::cli::OptionParser* options, Checkpoint checkpoint);
 // A same-origin iframe realm shares the compartment of sameOrigin.
-JSObject* CreatePage(JSContext* cx, JS::HandleObject sameOrigin = nullptr);
+JSObject* CreatePage(JSContext* cx, JS::HandleObject sameOrigin = nullptr,
+                     bool withWindowProxy = true);
 // `host` marks code the embedder supplied (RPC eval, CLI); page scripts pass false.
 bool Evaluate(JSContext* cx, JS::HandleObject page, JS::HandleString code,
               const char* filename, Checkpoint checkpoint,

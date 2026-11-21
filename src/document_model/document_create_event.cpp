@@ -14,7 +14,7 @@ bool CreateEvent(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!document) return false;
   if (!argc) return TypeError(cx, "createEvent requires an event type");
   State& owner = *document->owner;
-  owner.Observe("Document", "createEvent", int(ApiAccess::Call));
+  auto __p0trace_0 = owner.ObserveScoped(cx, args, "Document", "createEvent", int(ApiAccess::Call));
   DomString name;
   if (!String(cx, args[0], &name)) return false;
   {

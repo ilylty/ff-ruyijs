@@ -62,9 +62,9 @@ bool Get(JSContext* cx, unsigned argc, JS::Value* vp) {
   State& state = *entry->owner;
   auto field = HyperlinkField(FunctionSlot(args));
   std::string result;
+  auto __p0trace_0 = state.ObserveScoped(cx, args, "HTMLAnchorElement", kFields[int(field)], int(ApiAccess::Read));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe("HTMLAnchorElement", kFields[int(field)], int(ApiAccess::Read));
     std::optional<DomString> raw;
     std::string href, base;
     if (!Input(state, entry->key, &raw, &href, &base)) return false;
@@ -87,7 +87,7 @@ bool Set(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!(field == HyperlinkField::Username || field == HyperlinkField::Password
           ? ControlString(cx, args.get(0), &text) : String(cx, args.get(0), &text))) return false;
   JSAutoRealm realm(cx, state.page);
-  state.Observe("HTMLAnchorElement", kFields[int(field)], int(ApiAccess::Write));
+  auto __p0trace_1 = state.ObserveScoped(cx, args, "HTMLAnchorElement", kFields[int(field)], int(ApiAccess::Write));
   if (field != HyperlinkField::Href) {
     std::optional<DomString> raw;
     std::string href, base, value, result;

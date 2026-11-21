@@ -61,6 +61,8 @@ class ExceptionCapture {
 };
 
 bool CaptureOperationFailure(JSContext* cx);
+bool CaptureCallbackFailure(JSContext* cx);
+bool CaptureHostBoundaryFailure(JSContext* cx);
 bool FormatOperationFailure(JSContext* cx, JS::MutableHandleValue value);
 bool CaptureShellException(JSContext* cx);
 bool CapturePromiseRejection(JSContext* cx, JS::HandleObject promise,

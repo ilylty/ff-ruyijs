@@ -24,9 +24,9 @@ bool Call(JSContext* cx, unsigned argc, JS::Value* vp) {
     if (argc > unsigned(offset + 2) && !ControlString(cx, args[offset + 2], &direction)) return false;
   }
   uint32_t flags = 0;
+  auto __p0trace_0 = state.ObserveScoped(cx, args, "HTMLTextAreaElement", kNames[method], int(ApiAccess::Call));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe("HTMLTextAreaElement", kNames[method], int(ApiAccess::Call));
     if (method == Check || method == Report) {
       if (!state.Check(state.model.ControlValidation(entry->key, &flags))) return false;
     } else if (method == Custom) {

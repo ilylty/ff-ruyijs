@@ -73,7 +73,7 @@ bool Read(JSContext* cx, unsigned argc, JS::Value* vp) {
       ? js::CheckedUnwrapStatic(&args.thisv().toObject()) : nullptr);
   Wrapper* entry = Receiver(cx, object);
   if (!entry) return false;
-  state.Observe("Element", fields[field], int(ApiAccess::Read));
+  auto __p0trace_0 = state.ObserveScoped(cx, args, "Element", fields[field], int(ApiAccess::Read));
   if (field == ScrollTop || field == ScrollLeft) {
     State& owner = *entry->owner;
     double width = 0, height = 0, x = 0, y = 0;
@@ -182,7 +182,7 @@ bool Write(JSContext* cx, unsigned argc, JS::Value* vp) {
       ? js::CheckedUnwrapStatic(&args.thisv().toObject()) : nullptr);
   Wrapper* entry = Receiver(cx, object);
   if (!entry) return false;
-  state.Observe("Element", fields[field], int(ApiAccess::Write));
+  auto __p0trace_1 = state.ObserveScoped(cx, args, "Element", fields[field], int(ApiAccess::Write));
   double number;
   if (!JS::ToNumber(cx, args.get(0), &number)) return false;
   args.rval().setUndefined();
@@ -214,7 +214,7 @@ bool Call(JSContext* cx, unsigned argc, JS::Value* vp) {
       ? js::CheckedUnwrapStatic(&args.thisv().toObject()) : nullptr);
   Wrapper* entry = Receiver(cx, object);
   if (!entry) return false;
-  state.Observe("Element", methods[method], int(ApiAccess::Call));
+  auto __p0trace_2 = state.ObserveScoped(cx, args, "Element", methods[method], int(ApiAccess::Call));
   // scroll()/scrollTo() take x, y or ScrollToOptions {left, top};
   // scrollBy() the same as deltas. Behavior is always instant here.
   double x = NAN, y = NAN;

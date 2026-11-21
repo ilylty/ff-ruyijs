@@ -67,6 +67,8 @@ bool Environment::Describe(JS::MutableHandleValue result) {
                std::size(kScreenFields)) ||
       !Group(state, output, "viewport", Kind::Viewport, kViewportFields,
                std::size(kViewportFields)) ||
+      !Group(state, output, "window", Kind::Window, kWindowFields,
+               std::size(kWindowFields)) ||
       !Group(state, output, "location", Kind::Location, kLocationFields,
                std::size(kLocationFields)) ||
       !Group(state, output, "locale", Kind::Locale, kLocaleFields, std::size(kLocaleFields)) ||
@@ -103,6 +105,10 @@ bool Environment::Describe(JS::MutableHandleValue result) {
       return false;
   }
   for (size_t owner = 0; owner < kOwnerGroupCount; ++owner) {
+    // The "window" group was already reported above from the model (it is
+    // listed with the owner groups only so the schema and this snapshot share
+    // one registry), so skip it here to avoid defining the property twice.
+    if (kOwnerGroups[owner].kind == Kind::Window) continue;
     if (!state.owners[owner].group.get()) continue;
     JS::RootedObject group(state.cx, state.owners[owner].group);
     if (!JS_DefineProperty(state.cx, output, kOwnerGroups[owner].name, group, JSPROP_ENUMERATE))

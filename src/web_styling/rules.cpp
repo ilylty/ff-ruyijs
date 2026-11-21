@@ -78,6 +78,7 @@ bool RuleStyleSet(JSContext* cx,unsigned argc,JS::Value* vp) {
   else row.declarations=row.kind==8?ruyijs::domain::styling::CssKeyframeDeclarations(text):
     ruyijs::domain::styling::CssDeclarationText(text);
   ++state.cssomGeneration;
+  if(row.kind!=6&&!detail::RefreshIndexedDeclaration(cx,view)) return false;
   args.rval().setUndefined();return true;
 }
 namespace {

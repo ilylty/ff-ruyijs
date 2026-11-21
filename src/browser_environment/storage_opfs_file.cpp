@@ -39,7 +39,7 @@ bool OpfsGetFile(JSContext* cx, unsigned argc, JS::Value* vp) {
   State& s = Of(args);
   auto* node = OpfsNodeOf(args.thisv(), &kOpfsFileClass);
   if (!node) { WebKit::FailBrand(cx, args, "FileSystemFileHandle"); return OpfsRejectPending(cx, args.rval()); }
-  s.Observe("FileSystemFileHandle", "getFile", 0);
+  auto __p0trace_0 = s.ObserveScoped(cx, args, "FileSystemFileHandle", "getFile", 0);
   if (!OpfsTree::Live(**node)) return OpfsRejectStatus(s, OpfsStatus::NotFound, args.rval());
   const OpfsNode& file = **node;
   JS::RootedObject buffer(cx, JS::NewArrayBuffer(cx, file.data.size()));

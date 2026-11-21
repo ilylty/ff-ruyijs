@@ -1,4 +1,5 @@
 #include "runtime/page_helpers.h"
+#include "runtime/member_registry.h"
 #include <string>
 #include "jsapi.h"
 #include "js/PropertyAndElement.h"
@@ -10,6 +11,14 @@ namespace ruyijs {
 bool PageHelpers::Member(JS::HandleObject function, const char* iface,
                            JS::HandleString name, const char* type) {
   if (!Enabled()) return true;
+  // The WebKit bridges install members outside the DocumentModel, so they have to
+  // reach the same registry or those callees stay unnamed at call time.
+  JS::RootedString memberName(cx_, name);
+  JS::UniqueChars nameUtf8 =
+      memberName ? JS_EncodeStringToUTF8(cx_, memberName) : nullptr;
+  if (nameUtf8) {
+    RegisterMemberName(function, iface, nameUtf8.get(), type);
+  }
   JSAutoRealm realm(cx_, page_);
   JS::RootedString interface(cx_, JS_NewStringCopyZ(cx_, iface));
   JS::RootedString kind(cx_, JS_NewStringCopyZ(cx_, type));

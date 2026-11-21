@@ -25,7 +25,7 @@ bool Call(JSContext* cx, unsigned argc, JS::Value* vp) {
       ? js::CheckedUnwrapStatic(&args.thisv().toObject()) : nullptr);
   auto* entry = DocumentReceiver(cx, object, &args);
   if (!entry) return false;
-  state.Observe("Document", names[method], int(ApiAccess::Call));
+  auto __p0trace_0 = state.ObserveScoped(cx, args, "Document", names[method], int(ApiAccess::Call));
   if (method == ProcessingInstruction) {
     if (argc < 2)
       return TypeError(cx, (std::string("Document.createProcessingInstruction: At least 2 arguments required, but only ") +

@@ -17,7 +17,7 @@ bool Get(JSContext* cx, unsigned argc, JS::Value* vp) {
   NodeSnapshot node;
   if (!Receiver(cx, args.thisv(), &node)) return false;
   constexpr const char* fields[] = {"name", "publicId", "systemId"};
-  FunctionState(args)->Observe("DocumentType", fields[field], int(ApiAccess::Read));
+  auto __p0trace_0 = FunctionState(args)->ObserveScoped(cx, args, "DocumentType", fields[field], int(ApiAccess::Read));
   return Value(cx, DomStringView(field == 0 ? node.node_name : field == 1 ? node.public_id : node.system_id), args.rval());
 }
 bool Call(JSContext* cx, unsigned argc, JS::Value* vp) {
@@ -27,7 +27,7 @@ bool Call(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto* entry = Receiver(cx, args.thisv(), &node);
   if (!entry) return false;
   constexpr const char* names[] = {"after", "before", "remove", "replaceWith"};
-  FunctionState(args)->Observe("DocumentType", names[method], int(ApiAccess::Call));
+  auto __p0trace_0 = FunctionState(args)->ObserveScoped(cx, args, "DocumentType", names[method], int(ApiAccess::Call));
   // The public ChildNode methods skip all conversion when detached.
   if (Same(node.parent, {})) { args.rval().setUndefined(); return true; }
   State& owner = *entry->owner;

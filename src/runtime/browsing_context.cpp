@@ -338,6 +338,7 @@ bool BrowsingContext::Finish(Frames& owner) {
   if (!web_crypto::Install(cx, page, *helpers)) return false;
   trusted = std::make_unique<web_trusted_types::Realm>(cx, page, *helpers);
   if (!trusted->Install()) return false;
+  trusted->SetSecurity(security.get());
   geometry = std::make_unique<web_geometry::Realm>(cx, page, *helpers);
   if (!geometry->Install()) return false;
   JS::RootedObject rangePrototype(cx, document->rangePrototype());

@@ -24,9 +24,9 @@ bool Read(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!entry) return false;
   auto& state = *entry->owner;
   JS::RootedValue result(cx);
+  auto __p0trace_0 = state.ObserveScoped(cx, args, "HTMLImageElement", member.name, int(ApiAccess::Read));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe("HTMLImageElement", member.name, int(ApiAccess::Read));
     if (member.kind == Zero) result.setInt32(0);
     else if (member.kind == Spacing) {
       uint32_t number;
@@ -62,9 +62,9 @@ bool Write(JSContext* cx, unsigned argc, JS::Value* vp) {
              !ControlString(cx, args.get(0), &text)) return false;
   // Conversion may re-enter DOM adoption; consult the wrapper's current owner.
   auto& state = *entry->owner;
+  auto __p0trace_1 = state.ObserveScoped(cx, args, "HTMLImageElement", member.name, int(ApiAccess::Write));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe("HTMLImageElement", member.name, int(ApiAccess::Write));
     auto status = remove ? state.model.RemoveAttribute(entry->key, member.attr)
         : member.kind == Spacing ? state.model.SetImageSpacing(entry->key, member.attr, number)
                                  : state.model.SetAttribute(entry->key, member.attr, text);

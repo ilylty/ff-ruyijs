@@ -166,7 +166,7 @@ bool Context2DStateSet(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (spec.kind == kPositive || spec.kind == kNonNegative || spec.kind == kAlpha ||
       spec.kind == kNumber)
     value.setNumber(double(float(number)));
-  if (spec.field == kFillStyle || spec.field == kStrokeStyle) {
+  if (spec.field == kFillStyle || spec.field == kStrokeStyle || spec.field == kShadowColor) {
     if (!NormalizeStyle(cx, &value, &accepted)) return false;
     if (!accepted) return true;
   }

@@ -1,4 +1,5 @@
 // The remaining public ruyijs methods; drawImage draws through Firefox's Skia.
+#include "runtime/cf_access_log.h"
 #include "web_canvas/internal.h"
 #include "document_model/state.h"
 #include "web_media/image_codec.h"
@@ -190,7 +191,9 @@ bool ResetContext2D(State& s, JS::HandleObject self) {
 bool Context2DExtra(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto args = JS::CallArgsFromVp(argc, vp);
   State& s = *detail::Self(args);
-  int op = detail::ContextSlot(args);
+  int op = detail::ContextSlot(args);  { const char* cf_n[] = {"isContextLost","isPointInStroke","reset","setLineDash","getLineDash","stroke","clip","strokeRect","strokeText","drawImage","arcTo","roundRect"};
+    cf_log::observe("CanvasRenderingContext2D", cf_n[(op) < 12 ? (op) : 11], 2); }
+
   JS::RootedObject self(cx);
   if (!detail::ContextReceiver(cx, args, &self)) return false;
   args.rval().setUndefined();

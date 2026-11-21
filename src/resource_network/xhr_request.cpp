@@ -1,4 +1,5 @@
 #include "resource_network/xhr.h"
+#include "runtime/cf_access_log.h"
 #include "js/Conversions.h"
 #include "js/Object.h"
 #include <algorithm>
@@ -71,6 +72,18 @@ bool XhrRequest(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!r) return false;
   r->owner->Observe("XMLHttpRequest", op == XOpen ? "open" : op == XSend ? "send" : "abort", int(ApiAccess::Call));
   bool ok = op == XOpen ? Open(cx, args, self) : op == XSend ? Send(cx, args, self) : Abort(self);
+  if (ok) {
+    // ruyitrace's xhrNative phases are open, send and setRequestHeader only; the
+    // state transitions arrive through XhrChange and are recorded there.
+    if (op == XOpen || op == XSend) {
+      const char* phase = op == XOpen ? "open" : "send";
+      cf_log::transport_record("xhrNative", phase, self, r->method.c_str(), r->url.c_str(),
+                               r->outgoing.c_str(), static_cast<int>(r->outgoing.size()),
+                               0, "", r->response.finalURL.empty() ? r->url.c_str() : r->response.finalURL.c_str(),
+                               0, 0, 0, r->state.asynchronous, r->state.ready,
+                               r->outgoing.empty() ? "" : "text", "");
+    }
+  }
   if (ok) args.rval().setUndefined();
   return ok;
 }

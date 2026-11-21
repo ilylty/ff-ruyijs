@@ -1,5 +1,7 @@
 #ifndef RUYIJS_BROWSER_ENVIRONMENT_STATE_H
 #define RUYIJS_BROWSER_ENVIRONMENT_STATE_H
+#include "runtime/cf_access_log.h"
+#include "runtime/cf_access_trace.h"
 #include "runtime/secure_slot.h"
 #include "browser_environment/environment.h"
 #include "browser_environment/cross_origin.h"
@@ -186,7 +188,16 @@ struct State final {
   ApiMonitorPort apiMonitor = nullptr;
   void* apiMonitorContext = nullptr;
   void Observe(const char* iface, const char* member, int type) const {
+    cf_log::observe(iface, member, type);
     if (apiMonitor) apiMonitor(apiMonitorContext, iface, member, type);
+  }
+  // Deferred variant: emits the record at scope exit, with the real return
+  // value, receiver and arguments. Wrap the native's return in .Finish(...).
+  CfAccessTrace ObserveScoped(JSContext* cx, const JS::CallArgs& args,
+                              const char* iface, const char* member, int type) const {
+    if (apiMonitor) apiMonitor(apiMonitorContext, iface, member, type);
+    return CfAccessTrace(cx, args, iface, member, type,
+                         cf_log::trace_handle() != nullptr);
   }
   // Graphics port: the WebGL owner's "webgl" group. Configure changes are
   // merged into webglGroup and pushed to the port; before the port exists they
@@ -283,6 +294,12 @@ struct State final {
   bool IsCrossOriginIsolated() const;
   bool ValidateLocale(std::vector<Change>* changes);
   void ApplyLocale(const std::vector<Change>& changes);
+  // The reconciled Intl default locale (locale_binding.cpp): the OS locale when
+  // its primary language subtag matches navigator.language's, otherwise
+  // navigator.language, with the host OS locale standing in for an unset
+  // locale.osLocale. Applied to this realm by ApplyLocale and Inherit, and to a
+  // Worker realm through its startup profile.
+  std::string BindLocale();
   bool Read(Kind kind, uint32_t field, ValueType type, JS::MutableHandleValue result);
   bool ReadViewport(double* width, double* height);
   // Existing Navigator/CSS capability and the independent Window exposure input.
@@ -311,6 +328,12 @@ const JSClass* ClassFor(Kind kind, bool worker = false);
 // frame's Navigator.prototype reads the top window's navigator, as a Firefox
 // binding works on its receiver's native object rather than the caller's realm.
 State* ReceiverState(const JS::CallArgs& args, const JSClass* clasp);
+// The reconciled Intl default locale (locale_binding.cpp): `osLocale` when its
+// primary language subtag matches `navigatorLanguage`'s (it carries the region),
+// `navigatorLanguage` when they differ, and "" only when both are empty and the
+// host has no default locale. An empty `osLocale` means the host OS locale.
+std::string ReconcileLocale(JSContext* cx, const std::string& osLocale,
+                            const std::string& navigatorLanguage);
 // Install-time interface and member names of one registered instance accessor,
 // e.g. InterfaceName(Kind::Navigator) -> "Navigator" and
 // MemberName(Kind::Navigator, 2) -> "appCodeName". Static names only, so the

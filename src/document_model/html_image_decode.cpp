@@ -12,9 +12,9 @@ bool ImageDecode(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!entry) return false;
   auto& state = *entry->owner;
   JS::RootedValue result(cx);
+  auto __p0trace_0 = state.ObserveScoped(cx, args, "HTMLImageElement", "decode", int(ApiAccess::Call));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe("HTMLImageElement", "decode", int(ApiAccess::Call));
     std::optional<DomString> src;
     if (!state.Check(state.model.GetAttribute(entry->key, u"src", &src))) return false;
     JS::RootedObject promise(cx, JS::NewPromiseObject(cx, nullptr));

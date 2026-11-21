@@ -37,6 +37,14 @@ bool XhrHeader(JSContext* cx, unsigned argc, JS::Value* vp) {
     if (!Convert(cx, args[1], &value)) return false;
     if (r->requestHeaders.size() >= Limits::header_fields) return Error(cx, "Too many XHR headers", true);
     r->requestHeaders.emplace_back(std::move(key), std::move(value));
+    // ruyitrace reports one `setRequestHeader` record per accepted header, so it
+    // belongs here rather than in the open/send/abort native.
+    cf_log::transport_record(
+        "xhrNative", "setRequestHeader", self, r->method.c_str(), r->url.c_str(),
+        r->outgoing.c_str(), static_cast<int>(r->outgoing.size()), 0, "",
+        r->response.finalURL.empty() ? r->url.c_str() : r->response.finalURL.c_str(),
+        0, 0, 0, r->state.asynchronous, r->state.ready,
+        r->outgoing.empty() ? "" : "text", "");
     return true;
   }
   if (r->state.ready < 2 || !r->response.status) {

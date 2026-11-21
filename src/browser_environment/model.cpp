@@ -48,7 +48,7 @@ bool Model::Read(Kind kind, uint32_t field, FieldValue* result) const noexcept {
     // Challenge-research access log (RUYIJS_CF_ACCESS_LOG).
     static const char* const kindNames[] = {"navigator", "screen", "location", "history",
         "locale", "webgl", "webgpu", "viewport", "permissions", "geolocation", "speech",
-        "storage", "media", "canvas", "audio", "mediafeatures", "rtc", "fonts"};
+        "storage", "media", "canvas", "audio", "mediafeatures", "rtc", "fonts", "window"};
     const auto index = static_cast<size_t>(kind);
     if (index < sizeof(kindNames) / sizeof(kindNames[0]))
       cf_log::access(kindNames[index], std::to_string(field));
@@ -142,6 +142,27 @@ bool Model::Read(Kind kind, uint32_t field, FieldValue* result) const noexcept {
           ? owner.screen().avail_height() : impl_->viewport_height;
       else if (field == 2) result->number = impl_->device_pixel_ratio;
       else return false;
+    } else if (kind == Kind::Window) {
+      // The window frame group (kWindowFields). Unset fields keep this
+      // runtime's previous geometry: the frame fills the screen and sits at the
+      // screen's work-area origin. Configured ones are reported verbatim, so
+      // the frame can differ from both the screen and the content viewport.
+      const auto& value = owner.screen();
+      switch (field) {
+        case kWindowFieldOuterWidth:
+          result->integer = impl_->window_outer_width.value_or(value.width());
+          break;
+        case kWindowFieldOuterHeight:
+          result->integer = impl_->window_outer_height.value_or(value.height());
+          break;
+        case kWindowFieldScreenX:
+          result->integer = impl_->window_screen_x.value_or(value.avail_left());
+          break;
+        case kWindowFieldScreenY:
+          result->integer = impl_->window_screen_y.value_or(value.avail_top());
+          break;
+        default: return false;
+      }
     } else return false;
     return true;
   } catch (...) { return false; }

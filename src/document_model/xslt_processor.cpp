@@ -75,7 +75,7 @@ bool Call(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!raw || JS::GetClass(raw) != &kXsltClass)
     return Fail(cx, std::string("'") + kNames[op] + "' called on an object that does not implement interface XSLTProcessor.");
   JS::RootedObject self(cx, raw), parameters(cx, &JS::GetReservedSlot(raw, 0).toObject());
-  state.Observe("XSLTProcessor", kNames[op], int(ApiAccess::Call));
+  auto __p0trace_0 = state.ObserveScoped(cx, args, "XSLTProcessor", kNames[op], int(ApiAccess::Call));
   if (argc < kLengths[op])
     return Fail(cx, std::string("XSLTProcessor.") + kNames[op] + ": At least " + std::to_string(kLengths[op]) +
                     " argument" + (kLengths[op] == 1 ? "" : "s") + " required, but only " + std::to_string(argc) + " passed");

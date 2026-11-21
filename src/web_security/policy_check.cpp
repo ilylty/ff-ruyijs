@@ -143,4 +143,19 @@ bool NeedsDigests(const std::vector<Policy>& policies, Directive directive) {
         if (s.kind == Source::Kind::Hash) return true;
   return false;
 }
+
+bool AllowsPolicyName(const std::vector<Policy>& policies, const std::string& name,
+                      bool created) {
+  for (const auto& policy : policies) {
+    const DirectiveEntry* entry = nullptr;
+    for (const auto& one : policy.directives)
+      if (one.name == "trusted-types") { entry = &one; break; }
+    if (!entry) continue;
+    if (entry->trusted_none) return false;
+    bool listed = entry->trusted_wildcard;
+    for (const auto& allowed : entry->trusted_names) listed |= allowed == name;
+    if (!listed || (created && !entry->trusted_allow_duplicates)) return false;
+  }
+  return true;
+}
 }  // namespace ruyijs::web_security

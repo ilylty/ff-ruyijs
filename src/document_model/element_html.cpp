@@ -10,7 +10,7 @@ bool Call(JSContext* cx, unsigned argc, JS::Value* vp) {
   State& function = *FunctionState(args);
   const int method = FunctionSlot(args);
   if (!ElementReceiver(cx, args.thisv())) return false;
-  function.Observe("Element", methods[method], int(ApiAccess::Call));
+  auto __p0trace_0 = function.ObserveScoped(cx, args, "Element", methods[method], int(ApiAccess::Call));
   if (!method) return Value(cx, DomStringView(u"<div></div>"), args.rval());
   // The public setters consume a string conversion but neither parse it nor
   // read options. Ordinary conversion exceptions are swallowed by that tool.

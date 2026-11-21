@@ -10,7 +10,7 @@ bool Read(JSContext* cx, unsigned argc, JS::Value* vp) {
   const int field = FunctionSlot(args);
   auto* entry = ElementReceiver(cx, args.thisv());
   if (!entry) return false;
-  function.Observe("Element", fields[field], int(ApiAccess::Read));
+  auto __p0trace_0 = function.ObserveScoped(cx, args, "Element", fields[field], int(ApiAccess::Read));
   JS::RootedValue result(cx, JS::NullValue());
   {
     State& owner = *entry->owner;
@@ -37,7 +37,7 @@ bool Write(JSContext* cx, unsigned argc, JS::Value* vp) {
   State& function = *FunctionState(args);
   auto* entry = ElementReceiver(cx, args.thisv());
   if (!entry) return false;
-  function.Observe("Element", "slot", int(ApiAccess::Write));
+  auto __p0trace_1 = function.ObserveScoped(cx, args, "Element", "slot", int(ApiAccess::Write));
   if (!argc) return TypeError(cx, "Element slot setter requires a value");
   DomString value;
   // Preserve standard string coercion, but propagate exceptions where the
@@ -55,7 +55,7 @@ bool Attach(JSContext* cx, unsigned argc, JS::Value* vp) {
   State& function = *FunctionState(args);
   auto* entry = ElementReceiver(cx, args.thisv());
   if (!entry) return false;
-  function.Observe("Element", "attachShadow", int(ApiAccess::Call));
+  auto __p0trace_2 = function.ObserveScoped(cx, args, "Element", "attachShadow", int(ApiAccess::Call));
   if (!argc) return TypeError(cx, "attachShadow requires an argument");
   ShadowOptions options;
   if (!ReadShadowOptions(cx, args[0], &options)) return false;

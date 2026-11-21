@@ -86,7 +86,7 @@ bool StringListGetter(JSContext* cx, unsigned argc, JS::Value* vp) {
   JS::RootedObject values(cx);
   if (!Receiver(cx, args, &state, &values)) return false;
   if (slot != kStringListLength) return Error(cx, "DOMStringList member is not installed");
-  state->Observe("DOMStringList", "length", int(ApiAccess::Read));
+  auto __p0trace_0 = state->ObserveScoped(cx, args, "DOMStringList", "length", int(ApiAccess::Read));
   uint32_t length = 0;
   if (!JS::GetArrayLength(cx, values, &length)) return false;
   args.rval().setInt32(int32_t(length));
@@ -100,8 +100,7 @@ bool StringListMethod(JSContext* cx, unsigned argc, JS::Value* vp) {
   JS::RootedObject values(cx);
   if (!Receiver(cx, args, &state, &values)) return false;
   if (slot == kStringListItem || slot == kStringListContains)
-    state->Observe("DOMStringList", slot == kStringListItem ? "item" : "contains",
-                   int(ApiAccess::Call));
+    auto __p0trace_1 = state->ObserveScoped(cx, args, "DOMStringList", slot == kStringListItem ? "item" : "contains", int(ApiAccess::Call));
   uint32_t length = 0;
   if (!JS::GetArrayLength(cx, values, &length)) return false;
   if (slot == kStringListItem) {
@@ -146,7 +145,7 @@ bool AncestorOriginsGetter(JSContext* cx, unsigned argc, JS::Value* vp) {
     return false;
   }
   state = receiver;
-  state->Observe("Location", "ancestorOrigins", int(ApiAccess::Read));
+  auto __p0trace_2 = state->ObserveScoped(cx, args, "Location", "ancestorOrigins", int(ApiAccess::Read));
   std::vector<std::string> origins;
   if (state->shared) {
     JS::RootedValue origin(cx);

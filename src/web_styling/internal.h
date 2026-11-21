@@ -71,6 +71,7 @@ bool PropertyNameAt(const std::string& block, size_t index, std::string* name);
 std::string Serialize(const std::string& name, const std::string& value, bool important);
 
 bool ReadViewBlock(JSContext*, JS::HandleObject, std::string*);
+bool RefreshIndexedDeclaration(JSContext* cx, JS::HandleObject view);
 bool WriteRuleBlock(State&, JS::HandleObject, JS::HandleValue);
 bool SetRuleProperty(State&, JS::HandleObject, const std::string&, JS::HandleValue,
                       JS::HandleValue priority, bool remove, JS::MutableHandleValue);

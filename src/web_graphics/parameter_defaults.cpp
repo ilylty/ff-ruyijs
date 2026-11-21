@@ -12,6 +12,10 @@ bool DefaultParameter(State& s, Context& context, int32_t name,
     out.setObjectOrNull(name == 0x8894 ? context.arrayBinding.get() : context.elementBinding.get());
     return true;
   }
+  if (name == 0x8CA7) {  // RENDERBUFFER_BINDING
+    out.setObjectOrNull(context.renderbufferBinding.get());
+    return true;
+  }
   if (name == 0x86A3) {  // COMPRESSED_TEXTURE_FORMATS: Firefox reports an empty list.
     JS::RootedObject empty(s.cx, JS_NewUint32Array(s.cx, 0));
     if (!empty) return false;

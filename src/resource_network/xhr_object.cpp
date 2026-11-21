@@ -1,4 +1,5 @@
 #include "runtime/web_kit.h"
+#include "runtime/cf_access_log.h"
 #include "resource_network/xhr.h"
 #include "interaction/realm.h"
 #include "runtime/native_constructor_trace.h"
@@ -123,7 +124,21 @@ bool XhrFire(JS::HandleObject object, const char* type) {
   return s.events->Fire(object, type, false, false);
 }
 bool XhrChange(JS::HandleObject object, int ready) {
-  return !XhrData(object).state.change(ready) || XhrFire(object, "readystatechange");
+  auto& r = XhrData(object);
+  // ruyitrace reports a `readystatechange` phase on every state transition, which
+  // is where most of its xhrNative volume comes from; this is the only funnel
+  // those transitions pass through. The status and body length travel with it
+  // because by the time readyState reaches 4 the response is already stored.
+  const int status = r.response.status;
+  cf_log::transport_record(
+      "xhrNative", "readystatechange", object, r.method.c_str(), r.url.c_str(),
+      r.outgoing.c_str(), static_cast<int>(r.outgoing.size()), status,
+      r.response.statusText.c_str(),
+      r.response.finalURL.empty() ? r.url.c_str() : r.response.finalURL.c_str(),
+      0, 0, 0, r.state.asynchronous, ready,
+      r.outgoing.empty() ? "" : "text", "",
+      status ? static_cast<int>(r.response.body.size()) : -1, nullptr);
+  return !r.state.change(ready) || XhrFire(object, "readystatechange");
 }
 bool XhrUploadFire(JS::HandleObject object, const char* type) {
   JSContext* cx = XhrData(object).owner->cx;

@@ -20,7 +20,7 @@ namespace domain = ::ruyijs::domain::browser_environment;
 namespace {
 State* Navigator(const JS::CallArgs& args, const char* member) {
   State* state = ReceiverState(args, ClassFor(Kind::Navigator));
-  if (state) state->Observe("Navigator", member, int(ApiAccess::Call));
+  state->Observe("Navigator", member, int(ApiAccess::Call));
   return state;
 }
 bool Fail(JSContext* cx, const std::string& message) {

@@ -18,7 +18,7 @@ bool Read(JSContext* cx, unsigned argc, JS::Value* vp) {
   JS::RootedObject object(cx);
   if (!XPathReceiver(cx, args.thisv(), XPathKind::Result, &object)) return false;
   const auto type = uint16_t(JS::GetReservedSlot(object, 1).toInt32());
-  state.Observe("XPathResult", fields[field], int(ApiAccess::Read));
+  auto __p0trace_0 = state.ObserveScoped(cx, args, "XPathResult", fields[field], int(ApiAccess::Read));
   if ((field == Number && type != 1) || (field == StringValue && type != 2) ||
       (field == Boolean && type != 3) || (field == Single && !values::xpath_single_node(type)) ||
       (field == Length && !values::xpath_snapshot(type)))
@@ -37,7 +37,7 @@ bool Call(JSContext* cx, unsigned argc, JS::Value* vp) {
   JS::RootedObject object(cx);
   if (!XPathReceiver(cx, args.thisv(), XPathKind::Result, &object)) return false;
   const auto type = uint16_t(JS::GetReservedSlot(object, 1).toInt32());
-  state.Observe("XPathResult", snapshot ? "snapshotItem" : "iterateNext", int(ApiAccess::Call));
+  auto __p0trace_1 = state.ObserveScoped(cx, args, "XPathResult", snapshot ? "snapshotItem" : "iterateNext", int(ApiAccess::Call));
   if (!(snapshot ? values::xpath_snapshot(type) : values::xpath_iterator(type)))
     return TypeError(cx, "XPathResult method is incompatible with its result type");
   if (snapshot) {

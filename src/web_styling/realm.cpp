@@ -62,6 +62,9 @@ JSObject* State::NewStyleView(const std::string& text, JS::MutableHandleObject o
   JS::SetReservedSlot(object, 1, JS::PrivateValue(this));
   JS::SetReservedSlot(object, 2, rule ? JS::ObjectValue(*rule) : JS::NullValue());
   JS::SetReservedSlot(object, 3, element ? JS::ObjectValue(*element) : JS::NullValue());
+  // PRO exposes non-writable, enumerable, configurable own indexed properties
+  // on declaration views. The one codec refreshes computed and rule views.
+  if (!pageView && !detail::RefreshIndexedDeclaration(cx, object)) return nullptr;
   if(pageView) {
     JS::RootedValue storage(cx,JS::ObjectValue(*object));js::ProxyOptions options;
     options.setClass(&kPageDescriptorsClass);

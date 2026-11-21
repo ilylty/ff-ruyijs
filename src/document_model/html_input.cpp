@@ -33,9 +33,9 @@ bool Get(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!entry) return false;
   auto& state = *entry->owner;
   JS::RootedValue result(cx);
+  auto __p0trace_0 = state.ObserveScoped(cx, args, "HTMLInputElement", p.name, int(ApiAccess::Read));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe("HTMLInputElement", p.name, int(ApiAccess::Read));
     DomString text; std::optional<DomString> attr;
     if (p.kind == Null) result.setNull();
     else if (p.kind == Files) { if (!InputFiles(*entry, &result)) return false; }
@@ -95,9 +95,9 @@ bool Set(JSContext* cx, unsigned argc, JS::Value* vp) {
         (DomStringView(p.attr) != u"size" || number > 0);
     if (apply && !String(cx, args[0], &text)) return false;
   }
+  auto __p0trace_1 = state.ObserveScoped(cx, args, "HTMLInputElement", p.name, int(ApiAccess::Write));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe("HTMLInputElement", p.name, int(ApiAccess::Write));
     if (p.kind == Files) {
       if (!SetInputFiles(*entry, args.get(0))) return false;
     } else if (p.kind == Checked || p.kind == Indeterminate) {

@@ -1,4 +1,5 @@
 #include "resource_network/page_http.h"
+#include "runtime/cf_access_log.h"
 #include "runtime/transport_partition.h"
 #include "resource_network/http_exchange.h"
 #include "resource_network/necko_http.h"
@@ -118,6 +119,14 @@ bool HttpExchange::Prepare(HttpResult* local) {
     auto status=CookieJoined(model_.Cookies(),address_.href(),context_.now,true,&cookie,
         context_.site,options_.navigation,method_=="GET"||method_=="HEAD");
     if(status.code!=ErrorCode::None){Fail(status.message);return false;}
+    {
+      // ruyitrace logs the cookie the request will carry (or the decision to drop
+      // it) as cookieSendDecisions. The joined jar is the same information here.
+      const char* first = cookie.empty() ? "" : cookie.c_str();
+      cf_log::cookie_record(cookie.empty() ? "cookieSendDecisions" : "cookieSendDecisions",
+                            "http", address_.href().c_str(), "", "", "",
+                            first, cookie.empty() ? 0 : 1, nullptr);
+    }
     if(!cookie.empty())outgoing_.emplace_back("Cookie",std::move(cookie));
   }
   domain::order_request_fields(outgoing_,

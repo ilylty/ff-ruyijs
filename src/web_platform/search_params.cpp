@@ -3,6 +3,7 @@
 // keys keep their relative order and a bound URL is written back through the
 // URL owner instead of a second copy of the query.
 #include "web_platform/state.h"
+#include "runtime/cf_access_log.h"
 #include "runtime/web_kit.h"
 #include "runtime/native_constructor_trace.h"
 #include "jsapi.h"
@@ -23,8 +24,23 @@ bool Check(JSContext* cx, const JS::CallArgs& args, JS::MutableHandleObject self
                        "URLSearchParams member called on an incompatible receiver");
 }
 
-bool Store(State& state, JS::HandleObject self, std::vector<Entry>& entries) {
-  return StoreEntries(state, self, entries);
+bool Store(State& state, JS::HandleObject self, std::vector<Entry>& entries,
+           const char* phase = nullptr) {
+  const bool ok = StoreEntries(state, self, entries);
+  if (ok && phase) {
+    // The mutating methods each report their own phase, matching ruyitrace's
+    // append/set/delete entries; the list is the post-mutation state.
+    std::string fields = "[";
+    for (size_t i = 0; i < entries.size(); ++i) {
+      if (i) fields += ",";
+      fields += "{\"name\":\"" + entries[i].first + "\",\"value\":\"" +
+                entries[i].second + "\"}";
+    }
+    fields += "]";
+    cf_log::body_builder_record("URLSearchParams", phase, self, fields.c_str(),
+                                static_cast<int>(entries.size()));
+  }
+  return ok;
 }
 
 bool Read(JSContext* cx, JS::HandleObject self, std::vector<Entry>* entries) {
@@ -57,6 +73,30 @@ bool ParamsConstructor(JSContext* cx, unsigned argc, JS::Value* vp) {
   JS::RootedValue text(cx);
   if (!object || !Value(cx, query, &text)) return false;
   JS::SetReservedSlot(object, kParamsQuerySlot, text);
+  {
+    // Every URLSearchParams construction lands here, whether it was built from a
+    // string, a record or an iterable. ruyitrace records the parsed fields, so the
+    // serialized query is parsed back into name/value pairs.
+    std::string fields = "[";
+    int count = 0;
+    size_t start = 0;
+    while (start < query.size()) {
+      const size_t end = query.find('&', start);
+      const std::string pair =
+          query.substr(start, end == std::string::npos ? std::string::npos : end - start);
+      if (!pair.empty()) {
+        if (count) fields += ",";
+        const size_t eq = pair.find('=');
+        fields += "{\"name\":\"" + pair.substr(0, eq) + "\",\"value\":\"" +
+                  (eq == std::string::npos ? "" : pair.substr(eq + 1)) + "\"}";
+        ++count;
+      }
+      if (end == std::string::npos) break;
+      start = end + 1;
+    }
+    fields += "]";
+    cf_log::body_builder_record("URLSearchParams", "parse", object, fields.c_str(), count);
+  }
   JS::SetReservedSlot(object, kParamsOwnerSlot, JS::UndefinedValue());
   args.rval().setObject(*object);
   return trace.Finish(true);
@@ -85,14 +125,14 @@ bool ParamsMethod(JSContext* cx, unsigned argc, JS::Value* vp) {
       if (!Convert(cx, args.get(0), &name) || !Convert(cx, args.get(1), &value)) return false;
       entries.emplace_back(std::move(name), std::move(value));
       args.rval().setUndefined();
-      return Store(state, self, entries);
+      return Store(state, self, entries, "append");
     case kDelete: {
       if (!Convert(cx, args.get(0), &name)) return false;
       entries.erase(std::remove_if(entries.begin(), entries.end(),
                                    [&name](const Entry& entry) { return entry.first == name; }),
                     entries.end());
       args.rval().setUndefined();
-      return Store(state, self, entries);
+      return Store(state, self, entries, "delete");
     }
     case kGet: {
       if (!Convert(cx, args.get(0), &name)) return false;
@@ -132,7 +172,7 @@ bool ParamsMethod(JSContext* cx, unsigned argc, JS::Value* vp) {
       }
       if (slot == entries.size()) next.emplace_back(std::move(name), std::move(value));
       args.rval().setUndefined();
-      return Store(state, self, next);
+      return Store(state, self, next, "set");
     }
     case kSort: {
       std::stable_sort(entries.begin(), entries.end(),
@@ -140,10 +180,24 @@ bool ParamsMethod(JSContext* cx, unsigned argc, JS::Value* vp) {
                          return left.first < right.first;
                        });
       args.rval().setUndefined();
-      return Store(state, self, entries);
+      return Store(state, self, entries, "sort");
     }
     case kToString: {
       std::string text = SerializeFormQuery(entries);
+      // ruyitrace records a stringify entry when the parameter list is read back
+      // as text, so the serialized form is visible on the trace.
+      {
+        std::string fields = "[";
+        for (size_t i = 0; i < entries.size(); ++i) {
+          if (i) fields += ",";
+          fields += "{\"name\":\"" + entries[i].first + "\",\"value\":\"" +
+                    entries[i].second + "\"}";
+        }
+        fields += "]";
+        cf_log::body_builder_record("URLSearchParams", "stringify", self,
+                                    fields.c_str(),
+                                    static_cast<int>(entries.size()));
+      }
       return Value(cx, text, args.rval());
     }
     case kForEach: {

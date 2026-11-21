@@ -75,11 +75,12 @@ JSString* PageLoad::ScriptBody(JSContext* cx, const resource_network::HttpResult
 }
 bool PageLoad::Source(Owners& owners, JS::HandleObject script, const std::string& base,
                       JS::MutableHandleString code, std::string* filename, bool* defer,
-                      bool* load_error, bool* module) {
+                      bool* load_error, bool* module, bool* inline_module) {
   JSContext* cx = owners.cx;
   code.set(nullptr);
   if (defer) *defer = false;
   if (module) *module = false;
+  if (inline_module) *inline_module = false;
   if(load_error)*load_error=false;
   bool is_module = false;
   auto failed=[&]{
@@ -110,18 +111,46 @@ bool PageLoad::Source(Owners& owners, JS::HandleObject script, const std::string
   BrowsingContext* context = Find(owners.document);
   web_security::Realm* security = context ? context->security.get() : nullptr;
   const bool parser_inserted = load_error == nullptr;
+  // The document base URL is the environment URL resolved through the first
+  // <base href> already in the parser's tree. Inline modules expose this URL
+  // as import.meta.url and use it to resolve their static import graph.
+  auto documentBase = [&](std::string* out) -> bool {
+    JS::RootedValue href(cx), reference(cx);
+    if (!owners.environment.URL(&href) || !href.isString()) { *out = base; return true; }
+    JS::RootedString hrefText(cx, href.toString());
+    std::string current;
+    if (!ToUTF8(cx, hrefText, &current)) return false;
+    *out = current;
+    if (!owners.document.ReadBaseReference(&reference)) return false;
+    if (!reference.isString()) return true;
+    JS::RootedString referenceText(cx, reference.toString());
+    std::string relative, resolved;
+    if (!ToUTF8(cx, referenceText, &relative)) return false;
+    if (resource_network::ResolveURL(current, relative, &resolved)) *out = resolved;
+    return true;
+  };
   if (src.isNull()) {
-    // This slice handles parser-inserted external modules only. Inline module
-    // evaluation and dynamic module preparation remain outside this owner pass.
-    if (is_module) return true;
+    // Parser-inserted inline module scripts are prepared from their text and
+    // queued as deferred modules. Dynamic inline modules remain out of scope.
+    if (is_module) {
+      if (!owners.document.ScriptAttribute(script, u"async", &async)) return false;
+      if (!async.isNull()) return true;
+      if (!documentBase(filename)) return false;
+    } else {
+      *filename = base;
+    }
     JS::RootedValue inline_source(cx);
     if (!owners.document.ScriptText(script, &inline_source)) return false;
-    *filename = base;
     JS::RootedString text(cx, inline_source.isString() ? inline_source.toString() : JS_GetEmptyString(cx));
     bool allowed = true;
     if (security && !security->AllowScript(script, nullptr, text, parser_inserted, &allowed)) return false;
     if (!allowed) return true;  // A blocked inline script does not run and fires nothing.
     if (inline_source.isString()) code.set(inline_source.toString());
+    else if (is_module) code.set(text);
+    if (is_module) {
+      if (defer) *defer = true;
+      if (inline_module) *inline_module = true;
+    }
     return true;
   }
   JS::RootedString value(cx, src.toString());

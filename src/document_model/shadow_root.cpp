@@ -19,7 +19,7 @@ bool Read(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!entry) return false;
   State& state = *entry->owner;
   const int slot = FunctionSlot(args);
-  state.Observe("ShadowRoot", members[slot], int(ApiAccess::Read));
+  auto __p0trace_0 = state.ObserveScoped(cx, args, "ShadowRoot", members[slot], int(ApiAccess::Read));
   ShadowSnapshot root;
   if (!state.Check(state.model.InspectShadow(entry->key, &root))) return false;
   switch (slot) {
@@ -43,7 +43,7 @@ bool Write(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!entry) return false;
   State& state = *entry->owner;
   const int slot = FunctionSlot(args);
-  state.Observe("ShadowRoot", members[slot], int(ApiAccess::Write));
+  auto __p0trace_1 = state.ObserveScoped(cx, args, "ShadowRoot", members[slot], int(ApiAccess::Write));
   if (slot != 6) return ThrowDOM(state, "NotSupportedError", "ShadowRoot capability awaits its original subsystem port");
   if (!argc) return TypeError(cx, "innerHTML setter requires a value");
   DomString html;
@@ -56,7 +56,7 @@ bool Call(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!entry) return false;
   State& state = *entry->owner;
   const int slot = FunctionSlot(args);
-  state.Observe("ShadowRoot", members[slot], int(ApiAccess::Call));
+  auto __p0trace_2 = state.ObserveScoped(cx, args, "ShadowRoot", members[slot], int(ApiAccess::Call));
   if (slot == 17 || slot == 18) {
     if (argc < 2) return TypeError(cx, "ShadowRoot point query requires two arguments");
     double x = 0, y = 0;

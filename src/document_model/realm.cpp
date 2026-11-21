@@ -1,3 +1,4 @@
+#include "runtime/cf_access_log.h"
 #include "document_model/state.h"
 #include "runtime/weak_object.h"
 #include "document_model/sanitizer.h"
@@ -131,7 +132,7 @@ State::~State() {
 bool Same(NodeKey a, NodeKey b) { return a.document == b.document && a.node == b.node; }
 Wrapper* State::Find(JSObject* object) const {
   if (!object) return nullptr;
-  object = js::CheckedUnwrapStatic(object);
+  object = js::CheckedUnwrapStatic(UnwrapPageProxy(object));
   if (!object) return nullptr;
   // Slot 0 of a live node is that node's wrapper. Walking `wrappers` is
   // linear in the number of live nodes, and every DOM call does this lookup.
@@ -199,8 +200,10 @@ Realm::Realm(JSContext* cx, JS::HandleObject page, interaction::Realm& events,
 Realm::~Realm() = default;
 static bool DocumentGetter(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto args = JS::CallArgsFromVp(argc, vp);
+  cf_log::observe_full("Window", "document", 0);
   State* state = FunctionState(args);
-  if (!args.thisv().isObject() || &args.thisv().toObject() != state->page)
+  if (!args.thisv().isObject() ||
+      UnwrapPageProxy(&args.thisv().toObject()) != state->page.get())
     return TypeError(cx, "Window receiver is incompatible");
   return state->Wrap(state->main, args.rval());
 }
@@ -246,6 +249,7 @@ bool Realm::Install() {
   if (!state.Commit(draft, &value)) return false;
   state.main = draft.root;
   JS::RootedObject getter(state.cx, state.Function(DocumentGetter, "get document", 0, 0));
+  if (getter) RecordMemberBinding(getter, "Window", "document", "get");
   JS::RootedObject setter(state.cx);
   return getter && JS_DefineProperty(state.cx, state.page, "document", getter, setter,
                                     JSPROP_ENUMERATE | JSPROP_PERMANENT) &&

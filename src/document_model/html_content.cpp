@@ -53,9 +53,9 @@ bool Read(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!entry) return false;
   auto& state = *entry->owner;
   JS::RootedValue result(cx);
+  auto __p0trace_0 = state.ObserveScoped(cx, args, m.iface, m.name, int(ApiAccess::Read));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe(m.iface, m.name, int(ApiAccess::Read));
     if (m.kind == Dormant) return TypeError(cx, "Public content member has no initialized implementation");
     if (m.kind == StyleSheet || m.kind == StyleDisabled) {
       if (!StyleElementAccess(*entry, m.kind == StyleSheet ? StyleElementAction::Sheet :
@@ -89,9 +89,9 @@ bool Write(JSContext* cx, unsigned argc, JS::Value* vp) {
   else if (m.kind == Integer) { if (!JS::ToInt32(cx, args.get(0), &number)) return false; }
   else if (m.kind == Plain) { if (!String(cx, args.get(0), &text)) return false; }
   else if (m.kind == Text && !ControlString(cx, args.get(0), &text)) return false;
+  auto __p0trace_1 = state.ObserveScoped(cx, args, m.iface, m.name, int(ApiAccess::Write));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe(m.iface, m.name, int(ApiAccess::Write));
     if (m.kind == Dormant) return TypeError(cx, "Public content member has no initialized implementation");
     if (m.kind == StyleDisabled) {
       JS::RootedValue result(cx);

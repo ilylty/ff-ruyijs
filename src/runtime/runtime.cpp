@@ -45,6 +45,7 @@
 #include "js/Exception.h"
 #include "js/PropertyAndElement.h"
 #include "js/String.h"
+#include "jit/JitOptions.h"
 #include "shell/jsoptparse.h"
 
 namespace ruyijs {
@@ -109,6 +110,49 @@ bool RunSession(JSContext* cx, const SessionOptions& session, js::cli::OptionPar
   // sessions get exactly as much (SessionOptions::stack). Never inlined, so
   // this is RunSession's own frame whether Run or an engine session calls it.
   const uintptr_t entry = RUYIJS_ENTRY_POSITION();
+  // The opcode and VM layers hook the interpreter's dispatch loop, so any script
+  // that gets JIT-compiled stops producing records part-way through its run.
+  // Compilation is turned off whenever a bytecode-level trace is requested;
+  // a trace run trades speed for a complete stream.
+  static const char* const kBytecodeTraces[] = {
+      "RUYIJS_DOM_JSCALL_OPCODE_URL", "RUYIJS_DOM_OPCODE",
+      "RUYIJS_DOM_JSVMP_TRACE"};
+  // An explicit JIT_OPTION_ pin wins: ruyitrace's documented tier-pin keeps
+  // Baseline JIT alive so its pc/op records survive, which only works if the
+  // blanket switch-off below stays out of the way.
+  const bool tierPinned =
+      getenv("JIT_OPTION_baselineInterpreterWarmUpThreshold") != nullptr ||
+      getenv("JIT_OPTION_normalIonWarmUpThreshold") != nullptr ||
+      getenv("JIT_OPTION_baselineJitWarmUpThreshold") != nullptr;
+  // Both tiers are hooked, so an opcode trace no longer needs compilation off.
+  // Ion still has to go: it consumes bytecode without per-op hooks, so its code
+  // would silently stop the stream. Baseline stays and is what ruyitrace reports
+  // as tier "jit".
+  for (const char* name : kBytecodeTraces) {
+    const char* value = getenv(name);
+    if (!value || !*value || !strcmp(value, "0")) continue;
+    if (!tierPinned) {
+      js::jit::JitOptions.ion = false;
+    }
+    break;
+  }
+  // ruyitrace exposes JIT_OPTION_<name> to pin the tier a script stays in. The
+  // documented way to keep a vm_step stream unbroken is
+  // JIT_OPTION_baselineInterpreterWarmUpThreshold=0 (Baseline starts at once)
+  // plus JIT_OPTION_normalIonWarmUpThreshold=2000000000 (Ion never kicks in),
+  // which keeps the Baseline tier's pc/op records instead of dropping them.
+  if (const char* value = getenv("JIT_OPTION_baselineInterpreterWarmUpThreshold")) {
+    js::jit::JitOptions.baselineInterpreterWarmUpThreshold =
+        uint32_t(strtoul(value, nullptr, 10));
+  }
+  if (const char* value = getenv("JIT_OPTION_normalIonWarmUpThreshold")) {
+    js::jit::JitOptions.normalIonWarmUpThreshold =
+        uint32_t(strtoul(value, nullptr, 10));
+  }
+  if (const char* value = getenv("JIT_OPTION_baselineJitWarmUpThreshold")) {
+    js::jit::JitOptions.baselineJitWarmUpThreshold =
+        uint32_t(strtoul(value, nullptr, 10));
+  }
   if (session.host) return Host(cx, cli, checkpoint, *session.host, NativeStackBelow(cx, entry));
   if (session.stack) MatchNativeStack(cx, entry, session.stack);
 #if !defined(_WIN32)

@@ -1,5 +1,7 @@
 #ifndef RUYIJS_INTERACTION_INTERNAL_H
 #define RUYIJS_INTERACTION_INTERNAL_H
+#include "runtime/cf_access_log.h"
+#include "runtime/cf_access_trace.h"
 #include "runtime/secure_slot.h"
 #include "runtime/weak_object.h"
 #include "interaction/realm.h"
@@ -219,7 +221,16 @@ struct State {
   // Reports one access to an install-registered member of this owner. A null
   // port (non-debug mode) skips without touching engine state.
   void Observe(const char* iface, const char* member, int type) const {
+    // The domtrace funnel first: without it these accesses only reach the debug
+    // monitor, and an unset port would drop them entirely.
+    cf_log::observe(iface, member, type);
     if (apiMonitor) apiMonitor(apiMonitorContext, iface, member, type);
+  }
+  ruyijs::CfAccessTrace ObserveScoped(JSContext* cx, const JS::CallArgs& args,
+                              const char* iface, const char* member, int type) const {
+    if (apiMonitor) apiMonitor(apiMonitorContext, iface, member, type);
+    return ruyijs::CfAccessTrace(cx, args, iface, member, type,
+                                 cf_log::trace_handle() != nullptr);
   }
   std::vector<std::unique_ptr<Target>> targets;
   std::vector<std::unique_ptr<Event>> events;

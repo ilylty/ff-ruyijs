@@ -4,6 +4,7 @@
 #include "jsapi.h"
 #include "js/Object.h"
 #include "js/PropertyAndElement.h"
+#include "js/Proxy.h"
 #include "js/Realm.h"
 #include "js/Wrapper.h"
 
@@ -35,9 +36,17 @@ void Realm::Retire() {
   state_->relay = nullptr; state_->relayContext = nullptr;
   state_->remoteClose = nullptr; state_->remoteCloseContext = nullptr;
 }
-bool CloneError(State& state) {
+bool CloneError(State& state, JS::HandleValue value) {
+  // Gecko's structuredClone holder rejects a Proxy with a distinct message;
+  // ruyitrace exposes it via `DataCloneError: Proxy object could not be cloned.`
+  // The same distinction is observable on the ruyijs side now that the page
+  // global is a real Proxy.
+  const char* message = "The object could not be cloned";
+  if (value.isObject() && js::IsProxy(&value.toObject())) {
+    message = "Proxy object could not be cloned.";
+  }
   return document_model::ThrowException(state.cx, state.exception,
-      "DataCloneError", "The object could not be cloned");
+      "DataCloneError", message);
 }
 bool Realm::Install() {
   State& s = *state_; JSContext* cx = s.cx;

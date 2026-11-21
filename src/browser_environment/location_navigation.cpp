@@ -129,7 +129,7 @@ bool LocationSetter(JSContext* cx, unsigned argc, JS::Value* vp) {
   State* state = Receiver(cx, args, &slot);
   if (!state) return false;
   uint32_t index = uint32_t(slot % 32);
-  state->Observe("Location", MemberName(Kind::Location, index), int(ApiAccess::Write));
+  auto __p0trace_0 = state->ObserveScoped(cx, args, "Location", MemberName(Kind::Location, index), int(ApiAccess::Write));
   JS::RootedString text(cx, JS::ToString(cx, args.get(0)));
   if (!text) return false;
   std::string input, current;
@@ -169,7 +169,7 @@ bool LocationMethod(JSContext* cx, unsigned argc, JS::Value* vp) {
   int32_t slot = 0;
   State* state = Receiver(cx, args, &slot);
   if (!state) return false;
-  state->Observe("Location", MethodName(slot), int(ApiAccess::Call));
+  auto __p0trace_1 = state->ObserveScoped(cx, args, "Location", MethodName(slot), int(ApiAccess::Call));
   std::string current;
   if (!Href(*state, &current)) return false;
   if (slot == kLocationReload) {

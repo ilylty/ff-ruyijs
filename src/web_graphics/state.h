@@ -52,7 +52,7 @@ struct UniformSlot {
 struct Context final {
   JS::PersistentRootedObject canvas, wrapper;
   JS::PersistentRootedObject arrayBinding, elementBinding;
-  JS::PersistentRootedObject drawFramebuffer, readFramebuffer;
+  JS::PersistentRootedObject drawFramebuffer, readFramebuffer, renderbufferBinding;
   JS::PersistentRootedObject extensions;
   // State backed by the existing Context owner; entries use WebGL pname enums.
   std::array<ParameterStateValue, 96> parameterState{};
@@ -72,9 +72,10 @@ struct Context final {
   JS::PersistentRootedObject surfaceContext, surfaceImage, surfacePixels;
   int32_t surfaceWidth = 0, surfaceHeight = 0;
   explicit Context(JSContext* cx, int32_t v)
-      : canvas(cx), wrapper(cx), arrayBinding(cx), elementBinding(cx), extensions(cx),
-        drawFramebuffer(cx), readFramebuffer(cx), currentProgram(cx), surfaceContext(cx),
-        surfaceImage(cx), surfacePixels(cx), version(v) {}
+      : canvas(cx), wrapper(cx), arrayBinding(cx), elementBinding(cx),
+        drawFramebuffer(cx), readFramebuffer(cx), renderbufferBinding(cx),
+        extensions(cx), currentProgram(cx), surfaceContext(cx), surfaceImage(cx),
+        surfacePixels(cx), version(v) {}
 };
 
 struct State {
@@ -102,9 +103,13 @@ bool InstallResultInterfaces(State&);
 bool InstallExtensions(State&);
 bool InstallContextEvent(State&);
 bool PublicCall(JSContext*, unsigned, JS::Value*);
+bool GetInternalformatParameter(JSContext*, unsigned, JS::Value*);
 bool StateCall(JSContext*, unsigned, JS::Value*);
 bool ClearCall(JSContext*, unsigned, JS::Value*);
 bool FramebufferCall(JSContext*, unsigned, JS::Value*);
+bool RenderbufferStateCall(JSContext*, unsigned, JS::Value*);
+bool IsSupportedRenderbufferFormat(int32_t) noexcept;
+bool RenderbufferFormatSupported(State&, Context&, int32_t);
 bool GetParameterState(const Context&, int32_t, ParameterStateValue*) noexcept;
 void SetParameterState(Context&, int32_t, ParameterKind, int, const double*) noexcept;
 bool ContextAttribute(JSContext*, unsigned, JS::Value*);

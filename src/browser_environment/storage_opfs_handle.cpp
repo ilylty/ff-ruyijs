@@ -55,8 +55,7 @@ bool HandleMember(JSContext* cx, unsigned argc, JS::Value* vp) {
     WebKit::FailBrand(cx, args, "FileSystemHandle");
     return getter ? false : OpfsRejectPending(cx, args.rval());
   }
-  s.Observe("FileSystemHandle", member == kKind ? "kind" : member == kName ? "name" :
-            member == kSame ? "isSameEntry" : "move", 0);
+  auto __p0trace_0 = s.ObserveScoped(cx, args, "FileSystemHandle", member == kKind ? "kind" : member == kName ? "name" : member == kSame ? "isSameEntry" : "move", 0);
   if (member == kKind) return StringValue(cx, (*node)->directory ? "directory" : "file", args.rval());
   if (member == kName) return StringValue(cx, (*node)->name, args.rval());
   if (member == kSame) {

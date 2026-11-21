@@ -23,9 +23,9 @@ bool Read(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!entry) return false;
   auto& state = *entry->owner;
   JS::RootedValue result(cx);
+  auto __p0trace_0 = state.ObserveScoped(cx, args, "HTMLIFrameElement", member.name, int(ApiAccess::Read));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe("HTMLIFrameElement", member.name, int(ApiAccess::Read));
     if (field == kSandbox) {
       if (!state.TokenListOwned(*entry, u"sandbox", &result)) return false;
     } else {
@@ -52,9 +52,9 @@ bool Write(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (field != kAllowFullscreen && !nullToEmpty &&
       !(plain ? String(cx, args.get(0), &text) : ControlString(cx, args.get(0), &text))) return false;
   auto& state = *entry->owner;
+  auto __p0trace_1 = state.ObserveScoped(cx, args, "HTMLIFrameElement", member.name, int(ApiAccess::Write));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe("HTMLIFrameElement", member.name, int(ApiAccess::Write));
     const auto status = field == kAllowFullscreen && !JS::ToBoolean(args.get(0))
         ? state.model.RemoveAttribute(entry->key, member.attribute)
         : state.model.SetAttribute(entry->key, member.attribute, text);
@@ -66,7 +66,7 @@ bool SvgDocument(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto args = JS::CallArgsFromVp(argc, vp);
   auto* entry = ControlReceiver(cx, args.thisv(), "HTMLIFrameElement", "getSVGDocument");
   if (!entry) return false;
-  entry->owner->Observe("HTMLIFrameElement", "getSVGDocument", int(ApiAccess::Call));
+  auto __p0trace_0 = entry->owner->ObserveScoped(cx, args, "HTMLIFrameElement", "getSVGDocument", int(ApiAccess::Call));
   args.rval().setNull(); return true;
 }
 }

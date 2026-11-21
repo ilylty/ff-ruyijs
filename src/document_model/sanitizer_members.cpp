@@ -98,7 +98,7 @@ bool Call(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!raw || JS::GetClass(raw) != &kSanitizerClass)
     return Fail(cx, std::string("'") + kNames[op] + "' called on an object that does not implement interface Sanitizer.");
   sz::Config& c = *static_cast<sz::Config*>(JS::GetReservedSlot(raw, 0).toPrivate());
-  state.Observe("Sanitizer", kNames[op], int(ApiAccess::Call));
+  auto __p0trace_0 = state.ObserveScoped(cx, args, "Sanitizer", kNames[op], int(ApiAccess::Call));
   const std::string where = std::string("Sanitizer.") + kNames[op] + ": ";
   if (argc < kLengths[op]) return Fail(cx, where + "At least 1 argument required, but only 0 passed");
   if (op == kGet) return Get(cx, c, args.rval());

@@ -16,7 +16,7 @@ bool Get(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (document) {
     Wrapper* entry = DocumentReceiver(cx, receiver);
     if (!entry) return false;
-    state.Observe("Document", "getSelection", int(ApiAccess::Call));
+    auto __p0trace_0 = state.ObserveScoped(cx, args, "Document", "getSelection", int(ApiAccess::Call));
     // Firefox returns the browsing context's Selection for the window's own
     // document (editors such as ProseMirror read root.getSelection()); a
     // document without one (DOMParser, createHTMLDocument) has none.
@@ -28,9 +28,9 @@ bool Get(JSContext* cx, unsigned argc, JS::Value* vp) {
     // The page class is the shared runtime's realm identity, not a JS prototype.
     // Any genuine page Window is accepted; the factory belongs to the callee.
     if (!args.thisv().isNullOrUndefined() &&
-        (!receiver || JS::GetClass(receiver) != JS::GetClass(state.page)))
+        (!receiver || JS::GetClass(UnwrapPageProxy(receiver)) != JS::GetClass(state.page)))
       return TypeError(cx, "Window receiver is incompatible");
-    state.Observe("Window", "getSelection", int(ApiAccess::Call));
+    auto __p0trace_1 = state.ObserveScoped(cx, args, "Window", "getSelection", int(ApiAccess::Call));
   }
   if (!state.selection) {
     JS::RootedObject prototype(cx, state.Find("Selection")->prototype);

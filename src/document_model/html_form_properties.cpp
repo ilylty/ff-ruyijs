@@ -20,9 +20,9 @@ bool Get(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!entry) return false;
   auto& state = *entry->owner;
   JS::RootedValue result(cx);
+  auto __p0trace_0 = state.ObserveScoped(cx, args, "HTMLFormElement", p.name, int(ApiAccess::Read));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe("HTMLFormElement", p.name, int(ApiAccess::Read));
     if (p.kind == Elements || p.kind == Length) {
       auto* list = FormCollection(state, entry->key);
       if (!list) return false;
@@ -51,9 +51,9 @@ bool Set(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (p.kind == NoValidate) present = JS::ToBoolean(args.get(0));
   else if (!String(cx, args.get(0), &text)) return false;
   auto& state = *entry->owner;
+  auto __p0trace_1 = state.ObserveScoped(cx, args, "HTMLFormElement", p.name, int(ApiAccess::Write));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe("HTMLFormElement", p.name, int(ApiAccess::Write));
     if (!state.Check(present ? state.model.SetFormAttribute(entry->key, p.attr, text)
                             : state.model.RemoveAttribute(entry->key, p.attr))) return false;
   }
@@ -65,9 +65,9 @@ bool Call(JSContext* cx, unsigned argc, JS::Value* vp) {
   int op = FunctionSlot(args);
   auto* entry = ControlReceiver(cx, args.thisv(), "HTMLFormElement");
   if (!entry) return false;
+  auto __p0trace_0 = entry->owner->ObserveScoped(cx, args, "HTMLFormElement", kMethods[op], int(ApiAccess::Call));
   {
     JSAutoRealm realm(cx, entry->owner->page);
-    entry->owner->Observe("HTMLFormElement", kMethods[op], int(ApiAccess::Call));
   }
   if (op <= 1) {
     if (!SubmitForm(*entry, args.get(0), op == 1)) return false;

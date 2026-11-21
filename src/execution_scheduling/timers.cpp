@@ -5,6 +5,9 @@
 #include "js/GCVector.h"
 #include "js/Principals.h"
 #include "js/String.h"
+#include "jsapi.h"
+#include "runtime/cf_access_log.h"
+#include <string>
 #include <new>
 
 namespace ruyijs::execution_scheduling {
@@ -144,6 +147,45 @@ bool Timer(JSContext* cx, unsigned argc, JS::Value* vp) {
   }
   int32_t delay = 0;
   if (argc > 1 && !JS::ToInt32(cx, args[1], &delay)) return false;
+  // Recorded after the conversions the page already observes, matching ruyitrace,
+  // which reports the resolved delay rather than the raw argument.
+  {
+    std::string handlerText;
+    if (JSObject* callable = handler.isObject() ? &handler.toObject() : nullptr) {
+      JS::RootedValue nameValue(cx);
+      JS::RootedObject fnObject(cx, callable);
+      if (JS_GetProperty(cx, fnObject, "name", &nameValue) && nameValue.isString()) {
+        JS::RootedString nameText(cx, nameValue.toString());
+        JS::UniqueChars utf8 = JS_EncodeStringToUTF8(cx, nameText);
+        if (utf8) handlerText = utf8.get();
+      } else {
+        JS_ClearPendingException(cx);
+      }
+      JS::RootedFunction function(cx, JS_GetObjectFunction(callable));
+      if (function) {
+        JSScript* script = JS_GetFunctionScript(cx, function);
+        if (script) {
+          const char* file = JS_GetScriptFilename(script);
+          const unsigned line = JS_GetScriptBaseLineNumber(cx, script);
+          if (file && *file) {
+            handlerText += " (";
+            handlerText += file;
+            handlerText += ":";
+            handlerText += std::to_string(line);
+            handlerText += ")";
+          }
+        } else {
+          JS_ClearPendingException(cx);
+        }
+      }
+    } else if (handler.isString()) {
+      JS::RootedString text(cx, handler.toString());
+      JS::UniqueChars utf8 = JS_EncodeStringToUTF8(cx, text);
+      if (utf8) handlerText = utf8.get();
+    }
+    cf_log::timer_record(interval ? "setInterval" : "setTimeout", delay,
+                         handlerText.c_str());
+  }
   const size_t slots = argc > 2 ? argc - 2 : 0;
   if (slots > 100000 - s->argumentSlots) return Error(cx, "Timer argument root limit exceeded", true);
   std::unique_ptr<Callback> callback(new (std::nothrow) Callback(cx));

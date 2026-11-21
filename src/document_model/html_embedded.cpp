@@ -24,9 +24,9 @@ bool Read(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!entry) return false;
   auto& state = *entry->owner;
   JS::RootedValue result(cx);
+  auto __p0trace_0 = state.ObserveScoped(cx, args, m.iface, m.name, int(ApiAccess::Read));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe(m.iface, m.name, int(ApiAccess::Read));
     if (m.kind == Dormant) return TypeError(cx, "Public embedded member has no initialized implementation");
     if (m.kind == Unsigned || m.kind == Loop) {
       double value = 0;
@@ -62,9 +62,9 @@ bool Write(JSContext* cx, unsigned argc, JS::Value* vp) {
   }
   const bool present = JS::ToBoolean(args.get(0));
   auto& state = *entry->owner;
+  auto __p0trace_1 = state.ObserveScoped(cx, args, m.iface, m.name, int(ApiAccess::Write));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe(m.iface, m.name, int(ApiAccess::Write));
     auto status = m.kind == Unsigned || m.kind == Loop ? state.model.SetEmbeddedInteger(entry->key, m.attr, number)
         : m.kind == Boolean && !present ? state.model.RemoveAttribute(entry->key, m.attr)
                                       : state.model.SetAttribute(entry->key, m.attr, text);
@@ -78,7 +78,7 @@ bool Method(JSContext* cx, unsigned argc, JS::Value* vp) {
   const char* iface = kind == 0 ? "HTMLEmbedElement" : "HTMLMarqueeElement";
   auto* entry = ControlReceiver(cx, args.thisv(), iface);
   if (!entry) return false;
-  entry->owner->Observe(iface, kind == 0 ? "getSVGDocument" : kind == 1 ? "start" : "stop", int(ApiAccess::Call));
+  auto __p0trace_0 = entry->owner->ObserveScoped(cx, args, iface, kind == 0 ? "getSVGDocument" : kind == 1 ? "start" : "stop", int(ApiAccess::Call));
   if (kind == 0) return TypeError(cx, "Public embedded member has no initialized implementation");
   args.rval().setUndefined(); return true;
 }

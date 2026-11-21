@@ -1,6 +1,8 @@
 #include "interaction/internal.h"
+#include <chrono>
 #include <cmath>
 #include "interaction/close_watcher.h"
+#include "runtime/cf_access_log.h"
 #include "runtime/exception_capture.h"
 #include "js/CallAndConstruct.h"
 #include "jsapi.h"
@@ -9,6 +11,7 @@
 #include "js/Object.h"
 #include "js/Realm.h"
 #include "js/String.h"
+#include "js/Conversions.h"
 
 namespace ruyijs::interaction {
 void State::invoke(std::shared_ptr<Listener> listener, domain::DomEvent& value, uint64_t target) {
@@ -28,7 +31,9 @@ void State::invoke(std::shared_ptr<Listener> listener, domain::DomEvent& value, 
   }
   const JS::Value* previous = currentEvent;
   currentEvent = argument.address();
+  const auto started = std::chrono::steady_clock::now();
   if (ok) ok = JS::Call(cx, receiver, function, JS::HandleValueArray(argument), &result);
+  (void)started;
   if (!ok) {
     CaptureOperationFailure(cx);
     JS_ClearPendingException(cx);
@@ -70,6 +75,8 @@ bool Dispatch(JSContext* cx, unsigned argc, JS::Value* vp) {
   Target* entry = TargetReceiver(cx, args, &target, &state);
   if (!entry) return false;
   state->Observe("EventTarget", "dispatchEvent", int(ApiAccess::Call));
+  if (!argc) return Error(cx, "TypeError",
+      "EventTarget.dispatchEvent: At least 1 argument required, but only 0 passed");
   // A same-origin Event from another realm may be dispatched here.
   State* creator = argc && args[0].isObject() ? Owner(cx, &args[0].toObject(), true) : nullptr;
   Event* event = creator ? creator->event(&args[0].toObject()) : nullptr;

@@ -62,8 +62,49 @@ DomString Format(int32_t value) {
   return out;
 }
 // nsGenericHTMLElement::GetOffsetRect rounds each component to CSS pixels.
+// HTML elements whose contents are not rendered when scripting is enabled.
+// The tokenizer treats noscript as RawText (model_html_tokenizer.cpp), so its
+// text is still in the DOM tree; innerText and layout must skip it. textContent
+// keeps the raw text, as the DOM spec requires.
+bool IsUnrenderedRawTextElement(const NodeSnapshot& snap) {
+  if (snap.kind != NodeKind::Element || !snap.is_html_element || !snap.local_name)
+    return false;
+  const DomString& name = *snap.local_name;
+  return name == u"noscript" || name == u"script" || name == u"style" ||
+         name == u"template" || name == u"head" || name == u"noframes" ||
+         name == u"noembed";
+}
+
+bool IsUnrenderedRawText(State& state, NodeKey key) {
+  NodeSnapshot snap;
+  if (!state.Check(state.model.Inspect(key, &snap))) return false;
+  return IsUnrenderedRawTextElement(snap);
+}
+
+// Rendered-text walk for innerText: identical to Model::TextContent except that
+// non-rendered raw-text subtrees contribute nothing.
+bool RenderedText(State& state, NodeKey key, bool, DomString* out) {
+  NodeSnapshot snap;
+  if (!state.Check(state.model.Inspect(key, &snap))) return false;
+  if (IsUnrenderedRawTextElement(snap)) return true;
+  if (snap.kind == NodeKind::Text && snap.node_value) out->append(*snap.node_value);
+  for (NodeKey child = snap.first_child; child.node;) {
+    NodeSnapshot next;
+    if (!state.Check(state.model.Inspect(child, &next))) return false;
+    if (!RenderedText(state, child, false, out)) return false;
+    child = next.next_sibling;
+  }
+  return true;
+}
+
 bool OffsetGet(JSContext* cx, const JS::CallArgs& args, Prop prop, Wrapper* entry) {
   State& owner = *entry->owner;
+  // A scripting-enabled browser gives noscript (and the other raw-text
+  // elements) no box at all.
+  if (IsUnrenderedRawText(owner, entry->key)) {
+    if (prop == OffsetParent) return args.rval().setNull(), true;
+    return args.rval().setInt32(0), true;
+  }
   OffsetGeometry geometry;
   if (!owner.offsetGeometry) return TypeError(cx, "Element layout port is not installed"), false;
   JS::RootedObject element(cx, &args.thisv().toObject());
@@ -126,9 +167,9 @@ bool ReflectedGet(JSContext* cx, unsigned argc, JS::Value* vp) {
   State& state = *entry->owner;
   if (prop >= OffsetWidth) return OffsetGet(cx, args, prop, entry);
   if (prop == InnerText) {
-    std::optional<DomString> text;
-    if (!state.Check(state.model.TextContent(entry->key, &text))) return false;
-    return Value(cx, text ? DomStringView(*text) : DomStringView(), args.rval());
+    DomString text;
+    if (!RenderedText(state, entry->key, true, &text)) return false;
+    return Value(cx, DomStringView(text), args.rval());
   }
   std::optional<DomString> value;
   if (!state.Check(state.model.GetAttribute(entry->key, DomString(Attribute(prop)), &value)))

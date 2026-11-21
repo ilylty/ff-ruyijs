@@ -1,6 +1,8 @@
 // TrustedTypePolicyFactory: the one per-realm `trustedTypes` object.
 // Behaviour follows TrustedTypePolicyFactory.cpp; CSP enforcement is absent (D127).
 #include "web_trusted_types/internal.h"
+#include "web_security/realm.h"
+#include "runtime/runtime.h"
 #include "runtime/page_helpers.h"
 #include "jsapi.h"
 #include "jsfriendapi.h"
@@ -71,6 +73,16 @@ bool CreatePolicy(JSContext* cx, unsigned argc, JS::Value* vp) {
   JS::RootedValue current(cx, JS::GetReservedSlot(self, FactoryDefault));
   bool isDefault = false;
   if (!JS_StringEqualsAscii(cx, name, "default", &isDefault)) return false;
+  std::string nameUtf8;
+  if (!ToUTF8(cx, name, &nameUtf8)) return false;
+  const bool created = state.createdPolicyNames.count(nameUtf8) != 0;
+  if (state.security &&
+      !state.security->AllowsPolicyName(nameUtf8, created)) {
+    const std::string message =
+        "TrustedTypePolicyFactory.createPolicy: Content-Security-Policy blocked creating policy named '" +
+        nameUtf8 + "'";
+    return Fail(cx, message.c_str());
+  }
   if (isDefault && current.isObject())
     return Fail(cx, "TrustedTypePolicyFactory.createPolicy: Tried to create a second default policy");
   JS::RootedObject policy(cx);
@@ -82,6 +94,7 @@ bool CreatePolicy(JSContext* cx, unsigned argc, JS::Value* vp) {
     JS::RootedString text(cx, nameValue.toString());
     policy = NewPolicy(state, text, callbacks[0], callbacks[1], callbacks[2]);
     if (!policy) return false;
+    state.createdPolicyNames.insert(nameUtf8);
     if (isDefault) JS::SetReservedSlot(self, FactoryDefault, JS::ObjectValue(*policy));
   }
   args.rval().setObject(*policy);
@@ -155,7 +168,8 @@ bool Global(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto args = JS::CallArgsFromVp(argc, vp);
   State& state = Self(args);
   if (args.thisv().isObject() &&
-      js::CheckedUnwrapStatic(&args.thisv().toObject()) != state.kit.page.get())
+      UnwrapPageProxy(js::CheckedUnwrapStatic(&args.thisv().toObject())) !=
+          state.kit.page.get())
     return Fail(cx, "'get trustedTypes' called on an object that does not implement interface Window.");
   args.rval().setObject(*state.factory);
   return JS_WrapValue(cx, args.rval());

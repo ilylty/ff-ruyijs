@@ -197,7 +197,7 @@ bool HistoryMethod(JSContext* cx, unsigned argc, JS::Value* vp) {
   int32_t slot = 0;
   State* state = Receiver(cx, args, &slot);
   if (!state) return false;
-  state->Observe("History", MethodName(slot), int(ApiAccess::Call));
+  auto __p0trace_0 = state->ObserveScoped(cx, args, "History", MethodName(slot), int(ApiAccess::Call));
   switch (slot) {
     case kHistoryPushState: return PushOrReplace(*state, args, false);
     case kHistoryReplaceState: return PushOrReplace(*state, args, true);
@@ -213,7 +213,7 @@ bool HistoryStateGetter(JSContext* cx, unsigned argc, JS::Value* vp) {
   State* state = Receiver(cx, args, &slot);
   if (!state) return false;
   if (slot != kHistoryState) return Error(cx, "History member is not installed");
-  state->Observe("History", "state", int(ApiAccess::Read));
+  auto __p0trace_1 = state->ObserveScoped(cx, args, "History", "state", int(ApiAccess::Read));
   Model& model = state->shared ? state->shared->model : state->model;
   std::vector<uint8_t> bytes;
   if (!model.HistoryState(&bytes)) { JS_ReportOutOfMemory(cx); return false; }
@@ -228,7 +228,7 @@ bool HistoryScrollRestorationGetter(JSContext* cx, unsigned argc, JS::Value* vp)
   if (!state) return false;
   if (slot != kHistoryScrollRestoration)
     return Error(cx, "History member is not installed");
-  state->Observe("History", "scrollRestoration", int(ApiAccess::Read));
+  auto __p0trace_2 = state->ObserveScoped(cx, args, "History", "scrollRestoration", int(ApiAccess::Read));
   Model& model = state->shared ? state->shared->model : state->model;
   bool manual = false;
   if (!model.ScrollRestoration(&manual)) { JS_ReportOutOfMemory(cx); return false; }
@@ -244,7 +244,7 @@ bool HistoryScrollRestorationSetter(JSContext* cx, unsigned argc, JS::Value* vp)
   if (!state) return false;
   if (slot != kHistoryScrollRestoration)
     return Error(cx, "History member is not installed");
-  state->Observe("History", "scrollRestoration", int(ApiAccess::Write));
+  auto __p0trace_3 = state->ObserveScoped(cx, args, "History", "scrollRestoration", int(ApiAccess::Write));
   JS::RootedString input(cx, JS::ToString(cx, args.get(0)));
   std::string value;
   if (!input || !ToUTF8(cx, input, &value)) return false;
@@ -264,7 +264,7 @@ bool InstallHistoryMembers(State& state, JS::HandleObject prototype) {
   struct MethodSpec { const char* name; int32_t slot; unsigned length; };
   static const MethodSpec kMethods[] = {
     {"pushState", kHistoryPushState, 2}, {"replaceState", kHistoryReplaceState, 2},
-    {"go", kHistoryGo, 1}, {"back", kHistoryBack, 0}, {"forward", kHistoryForward, 0},
+    {"go", kHistoryGo, 0}, {"back", kHistoryBack, 0}, {"forward", kHistoryForward, 0},
   };
   for (const auto& spec : kMethods) {
     JS::RootedObject method(state.cx,

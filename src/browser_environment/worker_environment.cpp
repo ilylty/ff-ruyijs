@@ -9,15 +9,24 @@
 
 namespace ruyijs::browser_environment {
 namespace {
+// WebIDL receiver check for the WorkerGlobalScope interface. Strict identity,
+// for the reason given in window_surface.cpp: Firefox applies the same rule.
+bool IsGlobalReceiver(State& state, const JS::CallArgs& args) {
+  JS::RootedValue thisv(state.cx, args.thisv());
+  if (thisv.isNullOrUndefined()) {
+    return true;
+  }
+  return thisv.isObject() && &thisv.toObject() == state.page;
+}
+
 bool WorkerGlobalGet(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto args = JS::CallArgsFromVp(argc, vp);
   auto* state = static_cast<State*>(
       js::GetFunctionNativeReserved(&args.callee(), 0).toPrivate());
-  if (!state || !state->worker || (!args.thisv().isNullOrUndefined() &&
-      (!args.thisv().isObject() || &args.thisv().toObject() != state->page)))
+  if (!state || !state->worker || !IsGlobalReceiver(*state, args))
     return Error(cx, "Worker environment called on incompatible receiver");
   const auto kind = Kind(js::GetFunctionNativeReserved(&args.callee(), 1).toInt32());
-  state->Observe("WorkerGlobalScope", kind == Kind::Location ? "location" : "navigator", int(ApiAccess::Read));
+  auto __p0trace_0 = state->ObserveScoped(cx, args, "WorkerGlobalScope", kind == Kind::Location ? "location" : "navigator", int(ApiAccess::Read));
   args.rval().setObject(*state->instances.get()[int32_t(kind)]);
   return true;
 }

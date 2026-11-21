@@ -8,9 +8,12 @@
 #include "browser_environment/source_snapshot.h"
 
 namespace ruyijs::browser_environment {
+// The first eighteen kinds keep the original owners' order (ClassFor and
+// State::instances index by kind); Kind::Window is the window frame's own
+// scalar group, appended so no existing index moves.
 enum class Kind : int32_t { Navigator, Screen, Location, History, Locale, WebGL, WebGpu, Viewport,
                             Permissions, Geolocation, Speech, Storage, Media, Canvas,
-                            Audio, MediaFeatures, Rtc, Fonts };
+                            Audio, MediaFeatures, Rtc, Fonts, Window };
 // Number is a finite double; a field marked nullable also accepts null.
 // Object is a fixed member list and Map a caller-named table; both carry their
 // shape in `members`/`count`/`value` below, so one group field can describe a
@@ -86,6 +89,25 @@ inline constexpr Field kViewportFields[] = {{"width", ValueType::Integer},
 // Index of devicePixelRatio in kViewportFields; the Window facade and the
 // styling owner's media-feature source both read it through this index.
 inline constexpr uint32_t kViewportDevicePixelRatio = 2;
+// The "window" group: the window frame's four CSSOM-View scalars. A real window
+// reports them independently of the screen it sits on and of the content box
+// inside it: outerWidth/outerHeight are the frame, while innerWidth/innerHeight
+// (the viewport group) are the content area. Unset, outerWidth/outerHeight fall
+// back to screen.width/height and screenX/screenY to screen.availLeft/availTop,
+// which is the degenerate geometry this runtime reported before the group
+// existed. innerWidth/innerHeight and devicePixelRatio are deliberately NOT
+// members: the content box belongs to the viewport group.
+inline constexpr Field kWindowFields[] = {{"outerWidth", ValueType::Integer},
+                                           {"outerHeight", ValueType::Integer},
+                                           {"screenX", ValueType::Integer},
+                                           {"screenY", ValueType::Integer}};
+// Field indices in kWindowFields (window_surface.cpp and Model::Read). The
+// "Field" infix keeps them apart from window_members.h's WindowMember slots,
+// which are named after the same JS members.
+inline constexpr uint32_t kWindowFieldOuterWidth = 0;
+inline constexpr uint32_t kWindowFieldOuterHeight = 1;
+inline constexpr uint32_t kWindowFieldScreenX = 2;
+inline constexpr uint32_t kWindowFieldScreenY = 3;
 // The "webgl" group configures the six GL strings a fingerprint probe reads
 // (the donor's webgl.vendor / webgl.renderer / webgl.unmasked_vendor /
 // webgl.unmasked_renderer keys plus the two version strings); the numeric
@@ -226,6 +248,12 @@ inline constexpr OwnerGroupSpec kOwnerGroups[] = {
   {Kind::Rtc, "rtc", kRtcFields, std::size(kRtcFields)},
   {Kind::MediaFeatures, "mediaFeatures", kMediaFeatureFields,
    std::size(kMediaFeatureFields)},
+  // Not an owner: the environment model itself holds the frame geometry (and
+  // applies it through the Window facade), so Model::Read resolves these four
+  // against the screen group. It is listed here so the profile schema, the
+  // snapshot and the model configure path all recognize the group name without
+  // a second registry.
+  {Kind::Window, "window", kWindowFields, std::size(kWindowFields)},
 };
 inline constexpr size_t kOwnerGroupCount = std::size(kOwnerGroups);
 struct FieldValue {
@@ -241,7 +269,6 @@ struct FieldValue {
   bool present = false;
 };
 struct Change { Kind kind; uint32_t field; FieldValue value; };
-
 // This bridge is compiled with C++ exceptions enabled. No exception crosses
 // these noexcept methods into the SpiderMonkey adapter.
 class Model final {

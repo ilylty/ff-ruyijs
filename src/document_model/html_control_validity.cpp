@@ -24,9 +24,9 @@ bool Get(JSContext* cx, unsigned argc, JS::Value* vp) {
   }
   auto* entry = ControlReceiver(cx, owner, nullptr);
   if (!entry) return false;
+  auto __p0trace_0 = entry->owner->ObserveScoped(cx, args, "ValidityState", kNames[field], int(ApiAccess::Read));
   {
     JSAutoRealm realm(cx, entry->owner->page);
-    entry->owner->Observe("ValidityState", kNames[field], int(ApiAccess::Read));
     if (!entry->owner->Check(entry->owner->model.ControlValidation(entry->key, &flags))) return false;
   }
   args.rval().setBoolean(field == 10 ? !flags : (flags & (1u << field)) != 0);

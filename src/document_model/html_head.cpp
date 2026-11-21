@@ -51,9 +51,9 @@ bool Read(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!entry) return false;
   auto& state = *entry->owner;
   JS::RootedValue result(cx);
+  auto __p0trace_0 = state.ObserveScoped(cx, args, m.iface, m.name, int(ApiAccess::Read));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe(m.iface, m.name, int(ApiAccess::Read));
     std::optional<DomString> text;
     if (m.kind == LinkSheet) {
       if (!StyleElementAccess(*entry, StyleElementAction::Sheet, false, &result)) return false;
@@ -89,9 +89,9 @@ bool Write(JSContext* cx, unsigned argc, JS::Value* vp) {
   else if (m.kind == BaseString) { if (!String(cx, args.get(0), &text)) return false; }
   else if (!(m.kind == LinkCors && args.get(0).isNull()) && !ControlString(cx, args.get(0), &text)) return false;
   auto& state = *entry->owner;
+  auto __p0trace_1 = state.ObserveScoped(cx, args, m.iface, m.name, int(ApiAccess::Write));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe(m.iface, m.name, int(ApiAccess::Write));
     auto status = DomStringView(m.attr)==u"async" ? state.model.SetScriptAsync(entry->key,present)
         : m.kind == ScriptText ? state.model.SetTextContent(entry->key, text)
         : present ? state.model.SetAttribute(entry->key, m.attr, text)
@@ -103,7 +103,7 @@ bool Write(JSContext* cx, unsigned argc, JS::Value* vp) {
 bool Supports(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto args = JS::CallArgsFromVp(argc, vp);
   State& state = *FunctionState(args);
-  state.Observe("HTMLScriptElement", "supports", int(ApiAccess::Call));
+  auto __p0trace_2 = state.ObserveScoped(cx, args, "HTMLScriptElement", "supports", int(ApiAccess::Call));
   DomString type; bool supported = false;
   if (!ControlString(cx, args.get(0), &type) || !state.Check(state.model.SupportsScriptType(type, &supported))) return false;
   args.rval().setBoolean(supported); return true;

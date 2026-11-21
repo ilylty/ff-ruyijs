@@ -25,7 +25,7 @@ State* Instance(JSContext* cx, const JS::CallArgs& args, const char* name) {
     return nullptr;
   }
   state = receiver;
-  state->Observe("External", name, int(ApiAccess::Call));
+  auto __p0trace_0 = state->ObserveScoped(cx, args, "External", name, int(ApiAccess::Call));
   return state;
 }
 bool Method(JSContext* cx, unsigned argc, JS::Value* vp) {

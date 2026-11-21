@@ -2,6 +2,8 @@
 #include "js/Conversions.h"
 #include "js/PropertyAndElement.h"
 #include "jsfriendapi.h"
+#include "runtime/cf_access_log.h"
+#include <string>
 
 namespace ruyijs::interaction {
 void Realm::SetAbortPorts(const AbortPorts& ports) { state_->abortPorts = ports; }
@@ -55,7 +57,15 @@ static bool Change(JSContext* cx, unsigned argc, JS::Value* vp, bool adding) {
   // and records nothing.
   state->Observe("EventTarget", adding ? "addEventListener" : "removeEventListener",
                  int(ApiAccess::Call));
-  if (argc < 2) return Error(cx, "TypeError", "Event listener requires type and callback");
+  if (argc < 2) {
+    const char* method = adding ? "addEventListener" : "removeEventListener";
+    std::string message = "EventTarget.";
+    message += method;
+    message += ": At least 2 arguments required, but only ";
+    message += std::to_string(argc);
+    message += " passed";
+    return Error(cx, "TypeError", message.c_str());
+  }
   JS::RootedString text(cx);
   std::string type;
   if (!Text(cx, args[0], &text, &type)) return false;
@@ -82,13 +92,43 @@ static bool Change(JSContext* cx, unsigned argc, JS::Value* vp, bool adding) {
     }
   }
   if (!adding) {
-    if (existing) target->aggregate.remove_listener(existing);
+    if (existing) {
+      char listenerId[24];
+      std::snprintf(listenerId, sizeof(listenerId), "%016llx",
+                    static_cast<unsigned long long>(existing));
+      cf_log::event_record("listener_remove", type.c_str(), listenerId, receiver,
+                           "Element", nullptr, options.capture, false, false,
+                           false, nullptr, -1);
+      target->aggregate.remove_listener(existing);
+    }
     state->cleanup();
     return true;
   }
   if (existing) return true;
   if (state->listeners.size() >= 100000) return Error(cx, "RangeError", "Event listener limit exceeded");
   auto id = target->aggregate.add_listener(domain::EventType(type), options);
+  {
+    // ruyitrace records the listener attach with its options and identity. The
+    // callback name is the only script-visible identity ruyijs holds here.
+    std::string callbackName;
+    if (JS::IsCallable(callback)) {
+      JS::RootedValue nameValue(cx);
+      if (JS_GetProperty(cx, callback, "name", &nameValue) && nameValue.isString()) {
+        JS::RootedString nameText(cx, nameValue.toString());
+        if (nameText) {
+          JS::UniqueChars utf8 = JS_EncodeStringToUTF8(cx, nameText);
+          if (utf8) callbackName = utf8.get();
+        }
+      }
+    }
+    char listenerId[24];
+    std::snprintf(listenerId, sizeof(listenerId), "%016llx",
+                  static_cast<unsigned long long>(id));
+    cf_log::event_record("listener_add", type.c_str(), listenerId, receiver,
+                         "Element", callbackName.empty() ? nullptr : callbackName.c_str(),
+                         options.capture, options.passive, options.once, false,
+                         nullptr, -1);
+  }
   auto listener = std::make_shared<Listener>(cx, callback, target->aggregate.id(), id,
                                             std::move(type), options.capture);
   state->listeners.push_back(listener);

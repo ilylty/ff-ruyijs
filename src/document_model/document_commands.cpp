@@ -50,7 +50,7 @@ bool Call(JSContext* cx, unsigned argc, JS::Value* vp) {
       ? js::CheckedUnwrapStatic(&args.thisv().toObject()) : nullptr);
   auto* entry = DocumentReceiver(cx, object, &args);
   if (!entry) return false;
-  entry->owner->Observe("Document", names[method], int(ApiAccess::Call));
+  auto __p0trace_0 = entry->owner->ObserveScoped(cx, args, "Document", names[method], int(ApiAccess::Call));
   if (method == Clear) {
     if (!ClearDocument(*entry)) return false;
     args.rval().setUndefined(); return true;

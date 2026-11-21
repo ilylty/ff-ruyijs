@@ -3,6 +3,7 @@
 // enumerable string keys, so the constructor accepts exactly what the donor
 // does; NewSearchParams creates the live object a URL keeps for its query.
 #include "web_platform/state.h"
+#include "runtime/cf_access_log.h"
 
 #include "runtime/web_kit.h"
 #include "jsapi.h"
@@ -64,8 +65,22 @@ bool ConvertInit(JSContext* cx, JS::HandleValue init, std::vector<Entry>* entrie
       cx, JS::PropertyKey::Symbol(JS::GetWellKnownSymbol(cx, JS::SymbolCode::iterator)));
   bool iterable = false;
   if (!JS_HasPropertyById(cx, object, iteratorId, &iterable)) return false;
-  return iterable ? PairsFromIterable(cx, init, entries)
-                  : RecordFromObject(cx, object, entries);
+  const bool ok = iterable ? PairsFromIterable(cx, init, entries)
+                           : RecordFromObject(cx, object, entries);
+  if (ok) {
+    // ruyitrace records the parsed form fields as a body_builder entry; this is
+    // the one place a URLSearchParams learns its contents.
+    std::string fields = "[";
+    for (size_t i = 0; i < entries->size(); ++i) {
+      if (i) fields += ",";
+      fields += "{\"name\":\"" + (*entries)[i].first + "\",\"value\":\"" +
+                (*entries)[i].second + "\"}";
+    }
+    fields += "]";
+    cf_log::body_builder_record("URLSearchParams", "parse", object, fields.c_str(),
+                                static_cast<int>(entries->size()));
+  }
+  return ok;
 }
 
 JSObject* NewSearchParams(State& state, const std::string& query, JS::HandleObject owner) {

@@ -58,7 +58,7 @@ Record* Unwrap(JSObject*);
 JSObject* NewPort(State&, std::shared_ptr<Endpoint>);
 bool Queue(const std::shared_ptr<Endpoint>&);
 void Disconnect(Endpoint&);
-bool CloneError(State&);
+bool CloneError(State&, JS::HandleValue value = JS::UndefinedHandleValue);
 bool Construct(JSContext*, unsigned, JS::Value*);
 bool GetPort(JSContext*, unsigned, JS::Value*);
 bool Post(JSContext*, unsigned, JS::Value*);

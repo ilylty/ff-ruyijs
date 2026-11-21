@@ -14,6 +14,7 @@
 #include "runtime/web_kit.h"
 #include "browser_environment/state.h"
 #include "browser_environment/window_members.h"
+#include "runtime/page_helpers.h"
 #include "jsfriendapi.h"
 #include "js/Conversions.h"
 #include "js/PropertyAndElement.h"
@@ -33,7 +34,8 @@ State* Receiver(JSContext* cx, const JS::CallArgs& args, int32_t* slot) {
   // (dom/bindings/BindingUtils.cpp:2863-2874), which this window is. Any other
   // non-matching receiver is still rejected.
   bool is_page = args.thisv().isNullOrUndefined() ||
-                 (args.thisv().isObject() && &args.thisv().toObject() == state->page);
+                 (args.thisv().isObject() &&
+                  UnwrapPageProxy(&args.thisv().toObject()) == state->page);
   if (!state || !is_page) {
     WebKit::FailBrand(cx, args, "Window");
     return nullptr;
@@ -94,7 +96,7 @@ bool WindowMethod(JSContext* cx, unsigned argc, JS::Value* vp) {
   int32_t slot = 0;
   State* state = Receiver(cx, args, &slot);
   if (!state) return false;
-  state->Observe("Window", WindowMemberName(slot), int(ApiAccess::Call));
+  auto __p0trace_0 = state->ObserveScoped(cx, args, "Window", WindowMemberName(slot), int(ApiAccess::Call));
   switch (slot) {
     case kWindowAlert: {
       // The message is still converted, so a throwing toString() keeps its

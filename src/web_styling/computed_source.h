@@ -70,6 +70,9 @@ struct ComputedStyle {
   double fontSize = 16;
   double rootFontSize = 16;
   unsigned specifiedMarginMask = 0, specifiedBorderMask = 0, specifiedPaddingMask = 0;
+  size_t declaredCount = 0;
+  std::string tag;
+  bool legacyProjected = false;
   // What this style passes to children's cascade
   // (StyleResolutionService::child_inputs), and whether it `inherit`s a
   // property that does not inherit, so reads its parent's other values too.

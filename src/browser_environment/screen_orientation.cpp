@@ -81,7 +81,7 @@ bool OrientationGetter(JSContext* cx, unsigned argc, JS::Value* vp) {
   State* state = OrientationOwner(cx, args);
   if (!state) return false;
   const char* name = slot == kType ? "type" : slot == kAngle ? "angle" : "onchange";
-  state->Observe("ScreenOrientation", name, int(ApiAccess::Read));
+  auto __p0trace_0 = state->ObserveScoped(cx, args, "ScreenOrientation", name, int(ApiAccess::Read));
   if (slot == kType) return OrientationTypeText(*state, args.rval());
   if (slot == kAngle) { args.rval().setInt32(0); return true; }
   args.rval().set(JS::GetReservedSlot(&args.thisv().toObject(), 1));
@@ -91,7 +91,7 @@ bool OrientationSetter(JSContext* cx, unsigned argc, JS::Value* vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   State* state = OrientationOwner(cx, args);
   if (!state) return false;
-  state->Observe("ScreenOrientation", "onchange", int(ApiAccess::Write));
+  auto __p0trace_1 = state->ObserveScoped(cx, args, "ScreenOrientation", "onchange", int(ApiAccess::Write));
   // WebIDL EventHandler: a non-callable value is stored as null.
   JS::RootedValue handler(cx);
   if (args.get(0).isObject() && JS::IsCallable(&args.get(0).toObject()))
@@ -106,8 +106,7 @@ bool OrientationMethod(JSContext* cx, unsigned argc, JS::Value* vp) {
   const int32_t slot = js::GetFunctionNativeReserved(&args.callee(), 1).toInt32();
   State* state = OrientationOwner(cx, args);
   if (!state) return false;
-  state->Observe("ScreenOrientation", slot == kLock ? "lock" : "unlock",
-                 int(ApiAccess::Call));
+  auto __p0trace_2 = state->ObserveScoped(cx, args, "ScreenOrientation", slot == kLock ? "lock" : "unlock", int(ApiAccess::Call));
   if (slot == kLock) return Lock(*state, args);
   args.rval().setUndefined();
   return true;

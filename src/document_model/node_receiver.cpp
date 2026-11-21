@@ -1,5 +1,6 @@
 #include "document_model/state.h"
 #include "runtime/web_kit.h"
+#include "runtime/page_helpers.h"
 #include "js/Object.h"
 #include "js/Realm.h"
 #include "js/Wrapper.h"
@@ -15,7 +16,7 @@ static void NodeBrandFail(JSContext* cx, const JS::CallArgs* args) {
   TypeError(cx, "Node receiver is incompatible");
 }
 Wrapper* NodeReceiver(JSContext* cx, JS::HandleValue value, const JS::CallArgs* args) {
-  JSObject* object = value.isObject() ? js::CheckedUnwrapStatic(&value.toObject()) : nullptr;
+  JSObject* object = value.isObject() ? js::CheckedUnwrapStatic(UnwrapPageProxy(&value.toObject())) : nullptr;
   auto* entry = object && JS::GetClass(object) == &kNodeClass
       ? static_cast<Wrapper*>(JS::GetReservedSlot(object, 0).toPrivate()) : nullptr;
   if (entry && entry->owner && !entry->dead) return entry;

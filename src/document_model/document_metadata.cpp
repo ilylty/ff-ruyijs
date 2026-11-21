@@ -29,9 +29,9 @@ bool Read(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!entry) return false;
   State& owner = *entry->owner;
   DomString text;
+  auto __p0trace_0 = owner.ObserveScoped(cx, args, "Document", property.name, int(ApiAccess::Read));
   {
     JSAutoRealm realm(cx, owner.page);
-    owner.Observe("Document", property.name, int(ApiAccess::Read));
     const auto field = property.field;
     if (field == Referrer) {
       if (entry->key.document == owner.main.document && entry->key.node == owner.main.node) text = owner.referrer;
@@ -91,7 +91,7 @@ bool Write(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!entry) return false;
   if (!argc) return TypeError(cx, "Document setter requires one argument");
   State& owner = *entry->owner;
-  owner.Observe("Document", property.name, int(ApiAccess::Write));
+  auto __p0trace_1 = owner.ObserveScoped(cx, args, "Document", property.name, int(ApiAccess::Write));
   if (property.field != Color) {
     DomString text;
     JS::RootedString converted(cx, JS::ToString(cx, args[0]));

@@ -2,6 +2,7 @@
 #include "runtime/browsing_context.h"
 #include "resource_network/async_http.h"
 #include "document_model/realm.h"
+#include "runtime/resource_buffer.h"
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -105,6 +106,35 @@ void Loaded(const std::string& url, bool ok, const resource_network::HttpResult&
 // later task boundary on this thread with the HTTP success decision and size.
 void LoadImage(void* context, const std::string& url, const std::string& referer,
                document_model::ImageLoadDone done, void* request) {
+  // data: URLs carry the image inline. Decode at the task boundary so load
+  // fires asynchronously like a fetch, matching Firefox's image loading content.
+  if (url.compare(0, 5, "data:") == 0) {
+    document_model::ImageLoadOutcome outcome;
+    const size_t comma = url.find(',');
+    if (comma != std::string::npos) {
+      const std::string meta = url.substr(5, comma - 5);
+      const std::string payload = url.substr(comma + 1);
+      const bool isBase64 = meta.size() >= 7 &&
+          meta.compare(meta.size() - 7, 7, ";base64") == 0;
+      std::string body;
+      if (isBase64) {
+        std::string encoded = payload;
+        encoded.erase(std::remove(encoded.begin(), encoded.end(), '\r'), encoded.end());
+        encoded.erase(std::remove(encoded.begin(), encoded.end(), '\n'), encoded.end());
+        if (resource_wire::DecodeBase64(encoded, &body).code ==
+            resource_network::ErrorCode::None) {
+          ImageSize(body, &outcome.width, &outcome.height);
+          outcome.bytes = std::move(body);
+          outcome.loaded = outcome.width != 0 && outcome.height != 0;
+        }
+      }
+      const size_t semi = meta.find(';');
+      outcome.mime = meta.substr(0, semi);
+      if (outcome.mime.empty()) outcome.mime = "text/plain";
+    }
+    done(request, outcome);
+    return;
+  }
   auto& http = *static_cast<resource_network::AsyncHttp*>(context);
   resource_network::HttpOptions options;options.initiator="img";
   options.source=referer;

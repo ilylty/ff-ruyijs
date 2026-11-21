@@ -21,9 +21,9 @@ bool Call(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (op == Remove && argc && !JS::ToInt32(cx, args[0], &removal)) return false;
   auto& state = *entry->owner;
   bool valid = true;
+  auto __p0trace_0 = state.ObserveScoped(cx, args, "HTMLSelectElement", kNames[op], int(ApiAccess::Call));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe("HTMLSelectElement", kNames[op], int(ApiAccess::Call));
     if (op == SetValidity && !state.Check(state.model.SetCustomValidity(entry->key, text))) return false;
     if (op == Check || op == Report) {
       bool enabled;

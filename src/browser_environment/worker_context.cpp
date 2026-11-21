@@ -12,7 +12,8 @@ State* Receiver(JSContext* cx, const JS::CallArgs& args, unsigned* slot) {
   auto* state = static_cast<State*>(js::GetFunctionNativeReserved(&args.callee(), 0).toPrivate());
   *slot = unsigned(js::GetFunctionNativeReserved(&args.callee(), 1).toInt32());
   if (state && state->worker && (args.thisv().isNullOrUndefined() ||
-      (args.thisv().isObject() && &args.thisv().toObject() == state->page))) return state;
+      (args.thisv().isObject() &&
+       UnwrapPageProxy(&args.thisv().toObject()) == state->page))) return state;
   Error(cx, "Worker context called on incompatible receiver"); return nullptr;
 }
 bool Get(JSContext* cx, unsigned argc, JS::Value* vp) {
@@ -20,7 +21,7 @@ bool Get(JSContext* cx, unsigned argc, JS::Value* vp) {
   unsigned slot;
   State* state = Receiver(cx, args, &slot);
   if (!state) return false;
-  state->Observe("WorkerGlobalScope", kNames[slot], int(ApiAccess::Read));
+  auto __p0trace_0 = state->ObserveScoped(cx, args, "WorkerGlobalScope", kNames[slot], int(ApiAccess::Read));
   if (!slot) return state->ReadOrigin(args.rval());
   args.rval().setBoolean(slot == 1 ? state->workerContext.secure : state->IsCrossOriginIsolated());
   return true;
@@ -30,7 +31,7 @@ bool SetOrigin(JSContext* cx, unsigned argc, JS::Value* vp) {
   unsigned slot;
   State* state = Receiver(cx, args, &slot);
   if (!state) return false;
-  state->Observe("WorkerGlobalScope", "origin", int(ApiAccess::Write));
+  auto __p0trace_1 = state->ObserveScoped(cx, args, "WorkerGlobalScope", "origin", int(ApiAccess::Write));
   if (!JS_DefineProperty(cx, state->page, "origin", args.get(0), JSPROP_ENUMERATE)) return false;
   args.rval().setUndefined(); return true;
 }

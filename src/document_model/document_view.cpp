@@ -22,7 +22,7 @@ bool Read(JSContext* cx, unsigned argc, JS::Value* vp) {
   JS::RootedObject receiver(cx, args.thisv().isObject()
       ? js::CheckedUnwrapStatic(&args.thisv().toObject()) : nullptr);
   if (!DocumentReceiver(cx, receiver)) return false;
-  state.Observe("Document", fields[field], int(ApiAccess::Read));
+  auto __p0trace_0 = state.ObserveScoped(cx, args, "Document", fields[field], int(ApiAccess::Read));
   args.rval().setNull();
   if (field == 0) {
     // Standards mode scrolls the root element, quirks mode the body.
@@ -49,7 +49,7 @@ bool Call(JSContext* cx, unsigned argc, JS::Value* vp) {
   JS::RootedObject receiver(cx, args.thisv().isObject()
       ? js::CheckedUnwrapStatic(&args.thisv().toObject()) : nullptr);
   if (!DocumentReceiver(cx, receiver)) return false;
-  state.Observe("Document", methods[method], int(ApiAccess::Call));
+  auto __p0trace_1 = state.ObserveScoped(cx, args, "Document", methods[method], int(ApiAccess::Call));
   if (argc < 2) return TypeError(cx, "Document point query requires two arguments");
   double x, y;
   // Public methods convert both coordinates, accept non-finite values and

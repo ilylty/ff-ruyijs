@@ -139,7 +139,7 @@ bool Read(JSContext* cx, unsigned argc, JS::Value* vp) {
   State& state = *FunctionState(args);
   const auto field = Field(FunctionSlot(args));
   if (!Receiver(cx, args.thisv())) return false;
-  state.Observe("Selection", fields[field], int(ApiAccess::Read));
+  auto __p0trace_0 = state.ObserveScoped(cx, args, "Selection", fields[field], int(ApiAccess::Read));
   if (field == BidiLevel) { args.rval().set(state.caretBidiLevel); return true; }
   std::vector<Range*> ranges;
   if (!SelectionRanges(state, &ranges)) return false;
@@ -169,7 +169,7 @@ bool WriteBidi(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto args = JS::CallArgsFromVp(argc, vp);
   State& state = *FunctionState(args);
   if (!Receiver(cx, args.thisv())) return false;
-  state.Observe("Selection", "caretBidiLevel", int(ApiAccess::Write));
+  auto __p0trace_1 = state.ObserveScoped(cx, args, "Selection", "caretBidiLevel", int(ApiAccess::Write));
   if (args.get(0).isNullOrUndefined()) state.caretBidiLevel.setNull();
   else {
     int32_t level = 0;
@@ -488,7 +488,7 @@ bool Call(JSContext* cx, unsigned argc, JS::Value* vp) {
   State& state = *FunctionState(args);
   const auto method = Method(FunctionSlot(args));
   if (!Receiver(cx, args.thisv())) return false;
-  state.Observe("Selection", methods[method], int(ApiAccess::Call));
+  auto __p0trace_2 = state.ObserveScoped(cx, args, "Selection", methods[method], int(ApiAccess::Call));
   if (argc < lengths[method]) {
     const std::string text = std::string("Selection.") + methods[method] + ": At least " +
         std::to_string(lengths[method]) + (lengths[method] > 1 ? " arguments" : " argument") +

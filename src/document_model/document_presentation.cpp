@@ -71,7 +71,7 @@ bool Operate(JSContext* cx, const JS::CallArgs& args, State& state, int member) 
   const std::string name = kNames[member];
   JS::RootedObject document(cx);
   if (!Receiver(cx, args, (member < kAccessorCount ? "get " : "") + name, &document)) return false;
-  state.Observe("Document", kNames[member], int(member < kAccessorCount ? ApiAccess::Read : ApiAccess::Call));
+  auto __p0trace_0 = state.ObserveScoped(cx, args, "Document", kNames[member], int(member < kAccessorCount ? ApiAccess::Read : ApiAccess::Call));
   args.rval().setUndefined();
   if (member < kAccessorCount) {
     JS::RootedObject record(cx);
@@ -134,7 +134,7 @@ bool SetSelected(JSContext* cx, unsigned argc, JS::Value* vp) {
   State& state = *FunctionState(args);
   JS::RootedObject document(cx);
   if (!Receiver(cx, args, "set selectedStyleSheetSet", &document)) return false;
-  state.Observe("Document", "selectedStyleSheetSet", int(ApiAccess::Write));
+  auto __p0trace_1 = state.ObserveScoped(cx, args, "Document", "selectedStyleSheetSet", int(ApiAccess::Write));
   JS::RootedString text(cx, JS::ToString(cx, args.get(0)));
   JS::RootedObject record(cx);
   if (!text || !Record(state, document, &record)) return false;

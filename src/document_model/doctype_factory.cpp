@@ -13,7 +13,7 @@ bool CreateDocumentType(JSContext* cx, unsigned argc, JS::Value* vp) {
       JS::GetReservedSlot(service, 1).toInt32() != 2)
     return TypeError(cx, "DOMImplementation receiver is incompatible");
   if (argc < 3) return TypeError(cx, "createDocumentType requires three arguments");
-  factory.Observe("DOMImplementation", "createDocumentType", int(ApiAccess::Call));
+  auto __p0trace_0 = factory.ObserveScoped(cx, args, "DOMImplementation", "createDocumentType", int(ApiAccess::Call));
   DomString name, public_id, system_id;
   if (!PublicDocumentString(cx, args[0], &name) || !PublicDocumentString(cx, args[1], &public_id) || !PublicDocumentString(cx, args[2], &system_id)) return false;
   if (name.empty()) return StandardError(cx, "Failed to intern DocumentType name via native string interning");

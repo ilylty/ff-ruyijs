@@ -2,6 +2,7 @@
 // them. Every created object carries its owner context and kind in reserved
 // slots, so the context recognises its own objects without a second registry.
 #include "web_graphics/internal.h"
+#include "web_graphics/draw_calls.h"
 
 #include "js/Realm.h"
 #include "runtime/native_constructor_trace.h"
@@ -76,6 +77,7 @@ bool Delete(JSContext* cx, unsigned argc, JS::Value* vp, int32_t kind) {
   if (context->elementBinding == &value.toObject()) context->elementBinding = nullptr;
   if (context->drawFramebuffer == &value.toObject()) context->drawFramebuffer = nullptr;
   if (context->readFramebuffer == &value.toObject()) context->readFramebuffer = nullptr;
+  if (context->renderbufferBinding == &value.toObject()) context->renderbufferBinding = nullptr;
   return true;
 }
 
@@ -159,6 +161,22 @@ bool GetUniformLocation(JSContext* cx, unsigned argc, JS::Value* vp) {
   }
   JS::RootedString text(cx, JS::ToString(cx, args.get(1)));
   if (!text) return false;
+  JS::UniqueChars nameBytes(JS_EncodeStringToUTF8(cx, text));
+  if (!nameBytes) return false;
+  const std::string name(nameBytes.get());
+  // PRO only returns a location for a linked program whose attached shaders
+  // declare the name. An empty program or an unknown uniform returns null.
+  const bool linked = JS::GetReservedSlot(&program.toObject(),
+      detail::kObjectFlagSlot).toBoolean();
+  if (!linked) { args.rval().setNull(); return true; }
+  bool declared = false;
+  for (int32_t stage = 0; stage < 2 && !declared; ++stage) {
+    std::vector<GlslDeclaration> uniforms;
+    if (!draw_call_detail::StageDeclarations(cx, &program.toObject(), stage,
+                                             "uniform", &uniforms)) continue;
+    for (const auto& uniform : uniforms) declared = declared || uniform.name == name;
+  }
+  if (!declared) { args.rval().setNull(); return true; }
   JS::RootedObject object(cx);
   if (!NewObject(*state, kUniformLocationObject, *context, &object)) return false;
   // A location is a handle on the uniform's name: the value lives in the context.

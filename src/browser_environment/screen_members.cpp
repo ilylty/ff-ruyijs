@@ -40,15 +40,15 @@ bool Getter(JSContext* cx, unsigned argc, JS::Value* vp) {
   State* state = Owner(cx, args);
   if (!state) return false;
   if (slot == kMozOrientation) {
-    state->Observe("Screen", "mozOrientation", int(ApiAccess::Read));
+    [[maybe_unused]] auto trace = state->ObserveScoped(cx, args, "Screen", "mozOrientation", int(ApiAccess::Read));
     return OrientationTypeText(*state, args.rval());
   }
   if (slot == kMozOrientationChange) {
-    state->Observe("Screen", "onmozorientationchange", int(ApiAccess::Read));
+    [[maybe_unused]] auto trace = state->ObserveScoped(cx, args, "Screen", "onmozorientationchange", int(ApiAccess::Read));
     args.rval().set(JS::GetReservedSlot(&args.thisv().toObject(), kScreenHandlerSlot));
     return true;
   }
-  state->Observe("Screen", "orientation", int(ApiAccess::Read));
+  [[maybe_unused]] auto trace = state->ObserveScoped(cx, args, "Screen", "orientation", int(ApiAccess::Read));
   args.rval().setObject(*state->screenOrientation);
   return JS_WrapValue(cx, args.rval());
 }
@@ -56,7 +56,7 @@ bool Setter(JSContext* cx, unsigned argc, JS::Value* vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   State* state = Owner(cx, args);
   if (!state) return false;
-  state->Observe("Screen", "onmozorientationchange", int(ApiAccess::Write));
+  [[maybe_unused]] auto trace = state->ObserveScoped(cx, args, "Screen", "onmozorientationchange", int(ApiAccess::Write));
   // WebIDL EventHandler: a non-callable value is stored as null.
   JS::RootedValue handler(cx);
   if (args.get(0).isObject() && JS::IsCallable(&args.get(0).toObject()))
@@ -72,8 +72,7 @@ bool Method(JSContext* cx, unsigned argc, JS::Value* vp) {
   State* state = Owner(cx, args);
   if (!state) return false;
   const bool lock = slot == kMozLock;
-  state->Observe("Screen", lock ? "mozLockOrientation" : "mozUnlockOrientation",
-                 int(ApiAccess::Call));
+  auto __p0trace_0 = state->ObserveScoped(cx, args, "Screen", lock ? "mozLockOrientation" : "mozUnlockOrientation", int(ApiAccess::Call));
   if (lock) {
     // The DOMString overload still converts its argument before returning false.
     JS::RootedString ignored(cx, JS::ToString(cx, args.get(0)));

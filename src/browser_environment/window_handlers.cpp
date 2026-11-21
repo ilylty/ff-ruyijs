@@ -32,7 +32,7 @@ bool Get(JSContext* cx, unsigned argc, JS::Value* vp) {
   State* owner = WindowOwner(cx, args, &prototype);
   if (!owner) return false;
   const unsigned index = Index(args);
-  owner->Observe("Window", kWindowHandlerNames[index], int(ApiAccess::Read));
+  auto __p0trace_0 = owner->ObserveScoped(cx, args, "Window", kWindowHandlerNames[index], int(ApiAccess::Read));
   {
     JSAutoRealm realm(cx, prototype);
     JS::RootedObject store(cx, &JS::GetReservedSlot(prototype, kWindowHandlerStoreSlot).toObject());
@@ -47,7 +47,7 @@ bool Set(JSContext* cx, unsigned argc, JS::Value* vp) {
   State* owner = WindowOwner(cx, args, &prototype);
   if (!owner) return false;
   const unsigned index = Index(args);
-  owner->Observe("Window", kWindowHandlerNames[index], int(ApiAccess::Write));
+  auto __p0trace_1 = owner->ObserveScoped(cx, args, "Window", kWindowHandlerNames[index], int(ApiAccess::Write));
   JS::RootedValue next(cx, args.get(0).isObject() ? args.get(0) : JS::NullValue());
   {
     JSAutoRealm realm(cx, prototype);

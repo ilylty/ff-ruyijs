@@ -1,5 +1,6 @@
 #include "resource_network/xhr.h"
 #include "resource_network/async_http.h"
+#include "runtime/cf_access_log.h"
 #include "jsfriendapi.h"
 #include "js/Object.h"
 namespace ruyijs::resource_network {
@@ -25,6 +26,8 @@ bool Complete(JS::HandleObject self, uint64_t generation, bool asynchronous) {
   }
   r.response = std::move(http);
   JS::SetReservedSlot(self, XResponseCache, JS::UndefinedValue());
+  // The response phase is not a separate ruyitrace record: its readystatechange
+  // transition carries the status, and XhrChange emits it just below.
   if (!XhrChange(self, 2)) return false;
   if (asynchronous && s.xhrCheckpoint) s.xhrCheckpoint(s.cx);
   if (asynchronous && r.state.generation != generation) return true;

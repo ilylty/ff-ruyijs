@@ -34,7 +34,7 @@ bool Get(JSContext* cx, unsigned argc, JS::Value* vp) {
   NodeSnapshot node;
   Wrapper* entry = Receiver(cx, args, member, &node);
   if (!entry) return false;
-  entry->owner->Observe("ProcessingInstruction", kMembers[member], int(ApiAccess::Read));
+  auto __p0trace_0 = entry->owner->ObserveScoped(cx, args, "ProcessingInstruction", kMembers[member], int(ApiAccess::Read));
   if (member == 1) { args.rval().setNull(); return true; }
   return Value(cx, DomStringView(node.node_name), args.rval());
 }

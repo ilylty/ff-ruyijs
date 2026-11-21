@@ -50,7 +50,7 @@ bool RunWorker(JSContext* cx, js::cli::OptionParser* options, Checkpoint checkpo
   const bool shared = kind && !std::strcmp(kind, "shared");
   const web_workers::WorkerKind workerKind = service ? web_workers::WorkerKind::Service :
       shared ? web_workers::WorkerKind::Shared : web_workers::WorkerKind::Dedicated;
-  JS::RootedObject page(cx, CreatePage(cx));
+  JS::RootedObject page(cx, CreatePage(cx, nullptr, false));
   if (!page) return false;
   JSAutoRealm realm(cx, page);
   PageHelpers helpers(cx, page);
