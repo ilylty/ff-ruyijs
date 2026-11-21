@@ -52,6 +52,7 @@ JSObject* ReceiverGlobal(const JS::CallArgs& args) {
                                         : GlobalOf(&args.thisv().toObject());
 }
 bool State::Owns(JSObject* receiver) const {
+  receiver = UnwrapPageProxy(receiver);
   if (receiver == page.get()) return true;
   for (JSObject* installed : realms)
     if (installed == receiver) return true;

@@ -76,10 +76,9 @@ void ExceptionCapture::TrackRejection(
     return;
   }
   if (index < rejectionCount_) return;
-  if (rejectionCount_ == kLimit) {
-    Overflow("Request exceeds the 64 pending promise rejection limit");
-    return;
-  }
+  // PRO keeps the first rejection as the host error and stops tracking further
+  // pending promises; it does not turn the 65th rejection into a RangeError.
+  if (rejectionCount_ == kLimit) return;
   rejections_[rejectionCount_++] = promise;
 }
 
@@ -105,6 +104,29 @@ bool ExceptionCapture::Finish(JS::MutableHandleValue value, bool* success) {
 bool CaptureOperationFailure(JSContext* cx) {
   if (!activeCapture || activeCapture->context() != cx) return false;
   activeCapture->CapturePending();
+  return true;
+}
+
+bool CaptureCallbackFailure(JSContext* cx) {
+  // Uncaught exceptions raised inside page callbacks (timers, tasks, frames)
+  // are reported to the page's error stream by browsers; they must not turn
+  // the host's task-drain request into a failed operation. Clear the pending
+  // exception without touching the request-level failure state.
+  if (!JS_IsExceptionPending(cx)) return false;
+  JS_ClearPendingException(cx);
+  return true;
+}
+
+// PRO's MediaKeys and ServiceWorkerContainer.ready receiver errors reach the
+// host after the page script completes: record the error now and clear the
+// pending exception so the page script keeps running.
+bool CaptureHostBoundaryFailure(JSContext* cx) {
+  if (!JS_IsExceptionPending(cx)) return false;
+  if (activeCapture && activeCapture->context() == cx) {
+    activeCapture->CapturePending();
+    return true;
+  }
+  JS_ClearPendingException(cx);
   return true;
 }
 

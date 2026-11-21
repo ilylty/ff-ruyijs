@@ -1,5 +1,7 @@
 #ifndef RUYIJS_RESOURCE_STATE_H
 #define RUYIJS_RESOURCE_STATE_H
+#include "runtime/cf_access_log.h"
+#include "runtime/cf_access_trace.h"
 #include "resource_network/realm.h"
 #include "resource_network/body.h"
 #include "resource_network/model_headers.h"
@@ -99,7 +101,14 @@ struct State {
   void* cookieTaskContext = nullptr;
   void* apiMonitorContext = nullptr;
   void Observe(const char* iface, const char* member, int type) const {
+    cf_log::observe(iface, member, type);
     if (apiMonitor) apiMonitor(apiMonitorContext, iface, member, type);
+  }
+  ruyijs::CfAccessTrace ObserveScoped(JSContext* cx, const JS::CallArgs& args,
+                              const char* iface, const char* member, int type) const {
+    if (apiMonitor) apiMonitor(apiMonitorContext, iface, member, type);
+    return ruyijs::CfAccessTrace(cx, args, iface, member, type,
+                                 cf_log::trace_handle() != nullptr);
   }
   State(JSContext* context, JS::HandleObject global, PageHelpers& helpers)
       : cx(context), kit(context, global, helpers, this), page(context, global), holder(context), responsePrototype(context),

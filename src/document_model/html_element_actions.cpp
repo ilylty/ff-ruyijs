@@ -29,6 +29,7 @@ bool StyleElementSetter(JSContext* cx, unsigned argc, JS::Value* vp) {
 }
 bool StyleElementGetter(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto args = JS::CallArgsFromVp(argc, vp);
+  cf_log::observe_full("HTMLElement", "style", 0);
   Wrapper* entry = ElementReceiver(cx, args.thisv());
   if (!entry) return false;
   JS::RootedValue result(cx);

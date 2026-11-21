@@ -50,7 +50,7 @@ bool GetDirectory(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto args = JS::CallArgsFromVp(argc, vp);
   State* state = Owner(cx, args);
   if (!state) return false;
-  state->Observe("StorageManager", "getDirectory", int(ApiAccess::Call));
+  auto __p0trace_0 = state->ObserveScoped(cx, args, "StorageManager", "getDirectory", int(ApiAccess::Call));
   if (!state->opfsStore) return Error(cx, "OPFS is not installed");
   JS::RootedObject root(cx, state->opfsStore->NewHandle(state->opfsStore->tree().root()));
   JS::RootedValue wrapped(cx, root ? JS::ObjectValue(*root) : JS::UndefinedHandleValue);
@@ -65,7 +65,7 @@ bool Method(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!state) return false;
   const char* name = slot == kEstimate ? "estimate" :
                      slot == kPersisted ? "persisted" : "persist";
-  state->Observe("StorageManager", name, int(ApiAccess::Call));
+  auto __p0trace_1 = state->ObserveScoped(cx, args, "StorageManager", name, int(ApiAccess::Call));
   // Estimate and persistence read the profile's "storage" group through the
   // environment model, the same owner that validated it (no second copy).
   JS::RootedValue quota(cx), usage(cx), persisted(cx);
@@ -93,7 +93,7 @@ bool StorageGetter(JSContext* cx, unsigned argc, JS::Value* vp) {
   State* receiver = state ? ReceiverState(args, ClassFor(Kind::Navigator, state->worker)) : nullptr;
   if (!receiver) return Error(cx, "Navigator.storage called on incompatible receiver");
   state = receiver;
-  state->Observe("Navigator", "storage", int(ApiAccess::Read));
+  auto __p0trace_2 = state->ObserveScoped(cx, args, "Navigator", "storage", int(ApiAccess::Read));
   args.rval().setObject(*state->storageManager);
   return true;
 }

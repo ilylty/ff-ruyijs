@@ -17,6 +17,12 @@ enum PublicOperation { kVoid, kNull, kZero, kMinusOne, kInvalidIndex, kFalse,
                       kUseProgram, kBufferData, kGetAttribLocation,
                       kEnableVertexAttrib, kDisableVertexAttrib, kVertexAttribPointer,
                       kUniformFloat, kDrawArrays, kReadPixels, kGetProgramParameter,
-                      kGetShaderParameter, kGetShaderSource, kGetAttachedShaders };
+                      kGetShaderParameter, kGetShaderSource, kGetAttachedShaders,
+                      // internal_format.cpp: WebGL2 SAMPLES query.
+                      kGetInternalformatParameter,
+                      // framebuffer_binding.cpp: renderbuffer/framebuffer state calls.
+                      kBindRenderbuffer, kFramebufferRenderbuffer,
+                      kFramebufferTexture2D, kRenderbufferStorage,
+                      kRenderbufferStorageMultisample };
 }
 #endif

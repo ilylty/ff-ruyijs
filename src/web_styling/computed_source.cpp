@@ -1,11 +1,16 @@
 #include "domain/styling/stylesheet.h"
 #include "domain/styling/css_color_value.h"
+#include "domain/styling/css_declarations.h"
 #include "web_styling/internal.h"
 #include "web_styling/adopted.h"
 #include "web_styling/selector_input.h"
 #include "web_styling/computed_source.h"
 #include "web_styling/realm.h"
 #include "js/Wrapper.h"
+#include <algorithm>
+#include <iterator>
+#include <map>
+#include <set>
 
 namespace ruyijs::web_styling {
 struct ComputedStyleReader::Impl {
@@ -45,6 +50,83 @@ std::string SerializeCustoms(const css::StyleDeclaration& computed) {
   }
   return cachedText;
 }
+// PRO exposes the 85-entry legacy computed declaration shape. Firefox's
+// getComputedStyle shape is a separate surface and is not the reference here.
+const char* const kLegacyComputedProperties[] = {
+    "align-content", "align-items", "align-self", "background-color", "background-image", "border-bottom-color", "border-bottom-style", "border-bottom-width",
+    "border-left-color", "border-left-style", "border-left-width", "border-right-color", "border-right-style", "border-right-width", "border-spacing", "border-top-color",
+    "border-top-style", "border-top-width", "bottom", "box-sizing", "clear", "color", "column-gap", "content-visibility",
+    "cursor", "display", "flex-basis", "flex-direction", "flex-grow", "flex-shrink", "flex-wrap", "float",
+    "font-family", "font-feature-settings", "font-kerning", "font-language-override", "font-optical-sizing", "font-size", "font-size-adjust", "font-stretch",
+    "font-style", "font-variant-alternates", "font-variant-caps", "font-variant-east-asian", "font-variant-emoji", "font-variant-ligatures", "font-variant-numeric", "font-variant-position",
+    "font-variation-settings", "font-weight", "height", "justify-content", "left", "letter-spacing", "line-height", "list-style-type",
+    "margin-bottom", "margin-left", "margin-right", "margin-top", "max-height", "max-width", "min-height", "min-width",
+    "opacity", "order", "overflow-x", "overflow-y", "padding-bottom", "padding-left", "padding-right", "padding-top",
+    "position", "right", "row-gap", "text-align", "text-decoration", "top", "transform", "vertical-align",
+    "visibility", "white-space", "width", "word-spacing", "z-index",
+};
+
+const char* const kLegacyComputedDefaults[] = {
+    "normal", "normal", "auto", "rgba(0, 0, 0, 0)", "none", "rgb(0, 0, 0)", "none", "0px",
+    "rgb(0, 0, 0)", "none", "0px", "rgb(0, 0, 0)", "none", "0px", "0px", "rgb(0, 0, 0)",
+    "none", "0px", "auto", "content-box", "none", "rgb(0, 0, 0)", "normal", "visible",
+    "auto", "block", "auto", "row", "0", "1", "nowrap", "none",
+    "sans-serif", "normal", "auto", "normal", "auto", "16px", "none", "100%",
+    "normal", "normal", "normal", "normal", "normal", "normal", "normal", "normal",
+    "normal", "400", "auto", "normal", "auto", "normal", "normal", "disc",
+    "0px", "0px", "0px", "0px", "none", "none", "auto", "auto",
+    "1", "0", "visible", "visible", "0px", "0px", "0px", "0px",
+    "static", "auto", "normal", "start", "none", "auto", "none", "baseline",
+    "visible", "normal", "auto", "0px", "auto",
+};
+static_assert(std::size(kLegacyComputedProperties) == std::size(kLegacyComputedDefaults));
+
+void ProjectLegacyComputed(ComputedStyle* style) {
+  // PRO's computed block is the sorted cascade-winner declarations followed by
+  // the remaining legacy initial values in name order. Cascade winners outside
+  // the legacy table stay visible; non-legacy initial values are dropped.
+  // BuildComputedBlock appends inherited custom properties.
+  static const char* const sides[] = {"margin-top", "margin-right", "margin-bottom", "margin-left"};
+  std::map<std::string, std::string> computed;
+  for (const auto& entry : style->values) computed.emplace(entry.first, entry.second);
+  auto fix = [&](const std::string& name, std::string value) -> std::string {
+    if (style->tag == "body")
+      for (unsigned i = 0; i < 4; ++i)
+        if (name == sides[i] && !(style->specifiedMarginMask & (1u << i))) return "8px";
+    if (name == "text-decoration" && value == "none solid rgb(0, 0, 0)") return "none";
+    return value;
+  };
+  std::map<std::string, std::string> declared;
+  const size_t declaredCount = std::min(style->declaredCount, style->values.size());
+  for (size_t i = 0; i < declaredCount; ++i) {
+    const auto& entry = style->values[i];
+    if (entry.first == "-x-lang") continue;
+    if (entry.first.size() > 2 && entry.first.compare(0, 2, "--") == 0) continue;
+    declared.emplace(entry.first, fix(entry.first, entry.second));
+  }
+  if (style->tag == "body")
+    for (unsigned i = 0; i < 4; ++i)
+      if (!(style->specifiedMarginMask & (1u << i))) declared[sides[i]] = "8px";
+  std::vector<std::pair<std::string, std::string>> values;
+  values.reserve(std::size(kLegacyComputedProperties) + declared.size() + 1);
+  std::set<std::string> emitted;
+  for (const auto& entry : declared) {
+    values.emplace_back(entry);
+    emitted.insert(entry.first);
+  }
+  for (size_t i = 0; i < std::size(kLegacyComputedProperties); ++i) {
+    const std::string name = kLegacyComputedProperties[i];
+    if (emitted.count(name)) continue;
+    auto row = computed.find(name);
+    std::string value = row != computed.end() ? row->second : kLegacyComputedDefaults[i];
+    values.emplace_back(name, fix(name, std::move(value)));
+  }
+  // -x-lang remains available to the canvas language port but is not CSS.
+  auto lang = computed.find("-x-lang");
+  if (lang != computed.end()) values.emplace_back(lang->first, lang->second);
+  style->values = std::move(values);
+}
+
 void ComputeColors(ComputedStyle* style) {
   std::string current;
   for (const auto& [name, value] : style->values)
@@ -99,6 +181,9 @@ bool ComputedStyleReader::Read(JS::HandleObject element, ComputedStyle* out) {
   result.specifiedMarginMask = computed.specified_margin_mask;
   result.specifiedBorderMask = computed.specified_border_mask;
   result.specifiedPaddingMask = computed.specified_padding_mask;
+  result.tag = node->tag;
+  result.legacyProjected = true;
+  result.declaredCount = computed.all().size();
   for (const auto& entry : computed.all())
     result.values.emplace_back(entry.first, entry.first == "line-height"
         ? css::CssResolvedLineHeight(computed) : entry.second.value);
@@ -108,6 +193,7 @@ bool ComputedStyleReader::Read(JS::HandleObject element, ComputedStyle* out) {
   result.childInputs = css::StyleResolutionService::child_inputs(computed);
   result.inheritsReset = computed.inherits_reset;
   ComputeColors(&result);
+  ProjectLegacyComputed(&result);
   *out = std::move(result);
   return true;
 }
@@ -141,6 +227,9 @@ bool ComputedStyleReader::ReadDefault(JS::HandleObject element, ComputedStyle* o
   ComputedStyle result;
   result.fontSize = computed.computed_font_size;
   result.rootFontSize = computed.root_font_size;
+  result.tag = chain.front()->tag;
+  result.legacyProjected = true;
+  result.declaredCount = computed.all().size();
   for (const auto& entry : computed.all())
     result.values.emplace_back(entry.first, entry.first == "line-height"
         ? css::CssResolvedLineHeight(computed) : entry.second.value);
@@ -148,6 +237,7 @@ bool ComputedStyleReader::ReadDefault(JS::HandleObject element, ComputedStyle* o
     if (!computed.all().count(entry.first)) result.values.emplace_back(entry.first, entry.second);
   result.customsText = SerializeCustoms(computed);
   ComputeColors(&result);
+  ProjectLegacyComputed(&result);
   *out = std::move(result);
   return true;
 }

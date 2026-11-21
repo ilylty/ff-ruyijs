@@ -1,5 +1,6 @@
 #include "document_model/state.h"
 #include "document_model/foreign_adoption.h"
+#include "runtime/web_kit.h"
 #include "js/Array.h"
 #include "js/Conversions.h"
 #include "js/PropertyAndElement.h"
@@ -144,9 +145,26 @@ static int32_t AdjacentPosition(const DomString& text) {
   return text == u"beforebegin" ? 0 : text == u"afterbegin" ? 1
       : text == u"beforeend" ? 2 : text == u"afterend" ? 3 : -1;
 }
+// insertAdjacent* are Element methods: WebIDL brand and interface-kind
+// failures both use the callee's own name and "Element".
+static Wrapper* InsertReceiver(JSContext* cx, const JS::CallArgs& args) {
+  Wrapper* entry = NodeReceiver(cx, args.thisv());
+  if (!entry) JS_ClearPendingException(cx);
+  if (entry) {
+    State& owner = *entry->owner;
+    NodeSnapshot node;
+    JSAutoRealm realm(cx, owner.page);
+    if (owner.model.Inspect(entry->key, &node).code == ErrorCode::None &&
+        node.kind == NodeKind::Element) return entry;
+  }
+  std::string text;
+  if (WebKit::BrandText(cx, args, "Element", &text)) TypeError(cx, text.c_str());
+  else TypeError(cx, "Element receiver is incompatible");
+  return nullptr;
+}
 static bool InsertCall(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto args = JS::CallArgsFromVp(argc, vp);
-  Wrapper* entry = NodeReceiver(cx, args.thisv(), NodeKind::Element);
+  Wrapper* entry = InsertReceiver(cx, args);
   if (!entry) return false;
   if (argc < 2) return TypeError(cx, "insertAdjacent method has too few arguments");
   DomString text;

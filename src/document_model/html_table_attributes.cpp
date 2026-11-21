@@ -31,9 +31,9 @@ bool Get(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!entry) return false;
   auto& state=*entry->owner;
   DomString text; uint32_t number=1; bool present=false;
+  auto __p0trace_0 = state.ObserveScoped(cx, args, TableInterface(p.brand),p.name,int(ApiAccess::Read));
   {
     JSAutoRealm realm(cx,state.page);
-    state.Observe(TableInterface(p.brand),p.name,int(ApiAccess::Read));
     if (p.kind==Span) {
       if (!state.Check(state.model.TableSpan(entry->key,p.attr,&number))) return false;
     } else if (p.kind==Boolean) {
@@ -62,9 +62,9 @@ bool Set(JSContext* cx, unsigned argc, JS::Value* vp) {
     text.assign(ascii.begin(),ascii.end());
   } else if (!(p.kind==Legacy && args.get(0).isNull()) && !String(cx,args.get(0),&text)) return false;
   auto& state=*entry->owner;
+  auto __p0trace_1 = state.ObserveScoped(cx, args, TableInterface(p.brand),p.name,int(ApiAccess::Write));
   {
     JSAutoRealm realm(cx,state.page);
-    state.Observe(TableInterface(p.brand),p.name,int(ApiAccess::Write));
     if (!state.Check(present ? state.model.SetAttribute(entry->key,p.attr,text) :
         state.model.RemoveAttribute(entry->key,p.attr))) return false;
   }

@@ -14,7 +14,7 @@ bool DocumentImport(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto* source = NodeReceiver(cx, args[0]);
   if (!source) return false;
   State& owner = *target->owner;
-  owner.Observe("Document", "importNode", int(ApiAccess::Call));
+  auto __p0trace_0 = owner.ObserveScoped(cx, args, "Document", "importNode", int(ApiAccess::Call));
 
   // Firefox's BooleanOrImportNodeOptions union uses a dictionary for objects
   // and null; undefined uses the optional argument's default boolean false.

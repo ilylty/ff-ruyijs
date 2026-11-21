@@ -12,7 +12,7 @@ bool CreateXMLDocument(JSContext* cx, unsigned argc, JS::Value* vp) {
       JS::GetReservedSlot(service, 1).toInt32() != 2)
     return TypeError(cx, "DOMImplementation receiver is incompatible");
   if (argc < 2) return TypeError(cx, "createDocument requires two arguments");
-  state.Observe("DOMImplementation", "createDocument", int(ApiAccess::Call));
+  auto __p0trace_0 = state.ObserveScoped(cx, args, "DOMImplementation", "createDocument", int(ApiAccess::Call));
   DomString namespace_uri, name;
   if (!args[0].isNullOrUndefined() && !PublicDocumentString(cx, args[0], &namespace_uri)) return false;
   if (!args[1].isNull() && !PublicDocumentString(cx, args[1], &name)) return false;

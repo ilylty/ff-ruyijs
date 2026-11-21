@@ -53,6 +53,27 @@ void PrepareTracePath(std::vector<std::string>& arguments) {
   std::string path(configured);
   if (ExpandTracePid(path)) arguments.push_back("--trace-file=" + path);
 }
+// The DOM/ruyitrace harness marks its runs with this switch. Keep the two
+// trace surfaces addressable from one binary: its synthetic pro CLI probes stay
+// unknown options, and the standalone guard writes no file.
+void DisableProTraceCli(std::vector<std::string>& arguments) {
+  const char* disabled = std::getenv("RUYIJS_PRO_STANDALONE_TRACE_DISABLE");
+  if (!disabled || !*disabled) return;
+  static const char* const prefixes[] = {
+      "--trace=", "--trace-file=", "--trace-target=", "--trace-run-id=",
+      "--trace-limit=", "--trace-max-value=", "--trace-max-items=",
+      "--ruyijs-env="};
+  for (std::string& argument : arguments) {
+    bool matched = argument == "--trace-time";
+    for (const char* prefix : prefixes) {
+      if (argument.rfind(prefix, 0) == 0) {
+        matched = true;
+        break;
+      }
+    }
+    if (matched) argument = "--ruyijs-pro-disabled-" + argument.substr(2);
+  }
+}
 bool ProductMode(int count, char** values) {
   for (int index = 1; index < count; ++index) {
     if (!values[index]) continue;
@@ -96,6 +117,7 @@ bool Arguments::Prepare(int* count, char*** values) {
   }
 #endif
   PrepareTracePath(strings_);
+  DisableProTraceCli(strings_);
   for (auto& text : strings_) pointers_.push_back(text.data());
   pointers_.push_back(nullptr);
   *count = static_cast<int>(strings_.size());

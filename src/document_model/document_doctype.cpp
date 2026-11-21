@@ -18,7 +18,7 @@ bool ParsedDocumentTypeGetter(JSContext* cx, unsigned argc, JS::Value* vp) {
   JS::RootedObject source(cx, args.thisv().isObject() ? js::CheckedUnwrapStatic(&args.thisv().toObject()) : nullptr);
   auto* entry = DocumentReceiver(cx, source, &args);
   if (!entry) return false;
-  factory.Observe("Document", "doctype", int(ApiAccess::Read));
+  auto __p0trace_0 = factory.ObserveScoped(cx, args, "Document", "doctype", int(ApiAccess::Read));
   NodeKey type;
   State& owner = *entry->owner;
   return owner.Check(owner.model.ParsedDocumentType(entry->key, &type)) && owner.Wrap(type, args.rval(), nullptr, &factory);

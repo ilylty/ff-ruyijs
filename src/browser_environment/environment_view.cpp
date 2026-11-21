@@ -1,3 +1,4 @@
+#include "runtime/cf_access_log.h"
 #include "browser_environment/state.h"
 #include "browser_environment/string_list.h"
 #include "js/Object.h"
@@ -79,6 +80,8 @@ void Environment::SetNavigatorMediaCapabilities(JS::HandleObject value) {
 }
 bool Environment::ReadNavigatorMediaCapabilities(JSContext* cx, JS::HandleValue value,
                                                   JS::MutableHandleValue result) {
+  cf_log::observe("Navigator", "mediaCapabilities", 0);
+
   JS::RootedObject navigator(cx, value.isObject() ? js::CheckedUnwrapStatic(&value.toObject()) : nullptr);
   // Navigator, or WorkerNavigator in a Worker realm (both keep it in slot 2).
   if (!navigator || (JS::GetClass(navigator) != ClassFor(Kind::Navigator) &&

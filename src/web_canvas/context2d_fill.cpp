@@ -1,6 +1,7 @@
 // fill(), fillRect() and fillText() rasterize through the domain's analytic
 // scan converter; hit testing projects the recorded path rather than installing
 // a second owner.
+#include "runtime/cf_access_log.h"
 #include "web_canvas/internal.h"
 #include "web_canvas/path_geometry.h"
 
@@ -19,7 +20,9 @@ bool FillMethod(JSContext* cx,unsigned argc,JS::Value* vp) {
   auto args=JS::CallArgsFromVp(argc,vp);
   const int operation=detail::ContextSlot(args);
   JS::RootedObject self(cx);
-  if (!detail::ContextReceiver(cx,args,&self)) return false;
+  if (!detail::ContextReceiver(cx,args,&self)) return false;  { const char* cf_n[]={"fill","fillRect","fillText","isPointInPath"};
+    cf_log::observe("CanvasRenderingContext2D", cf_n[operation < 4 ? operation : 0], 2); }
+
   State& state=*detail::Self(args);
   bool evenodd=false,usable=false;
   double values[4];

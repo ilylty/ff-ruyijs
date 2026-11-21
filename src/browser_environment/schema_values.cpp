@@ -98,7 +98,13 @@ bool ReadField(JSContext* cx, JS::HandleValue value, Kind kind, uint32_t field,
   if (type == ValueType::Integer) {
     if (!value.isNumber()) return Error(cx, "Environment field must be numeric");
     double number = value.toNumber();
-    double minimum = kind == Kind::Screen && (field == 4 || field == 5)
+    // Screen origin fields and the window position may be negative: a secondary
+    // screen sits left of / above the primary one, and a window can be dragged
+    // partly off-screen. Sizes, counts and the remaining integers are
+    // non-negative, with navigator.hardwareConcurrency starting at 1.
+    double minimum = (kind == Kind::Screen && (field == 4 || field == 5)) ||
+                     (kind == Kind::Window &&
+                      (field == kWindowFieldScreenX || field == kWindowFieldScreenY))
         ? std::numeric_limits<int32_t>::min() : 0;
     if (kind == Kind::Navigator && field == 11) minimum = 1;
     if (!std::isfinite(number) || number != std::floor(number) || number < minimum ||

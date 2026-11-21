@@ -10,10 +10,10 @@ bool Content(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!entry) return false;
   auto& state = *entry->owner;
   JS::RootedValue result(cx);
+  auto __p0trace_0 = state.ObserveScoped(cx, args, "HTMLTemplateElement", "content", int(ApiAccess::Read));
   {
     JSAutoRealm realm(cx, state.page);
     JS::RootedObject host(cx, entry->object);
-    state.Observe("HTMLTemplateElement", "content", int(ApiAccess::Read));
     NodeKey fragment;
     if (!state.Check(state.model.TemplateContent(entry->key, &fragment))) return false;
     if (fragment.node) {

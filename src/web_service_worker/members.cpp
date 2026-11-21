@@ -1,6 +1,7 @@
 // ServiceWorkerContainer attributes: controller (always null), the SameObject
 // ready promise (never settles) and the three EventHandler attributes.
 #include "web_service_worker/internal.h"
+#include "runtime/exception_capture.h"
 #include "interaction/realm.h"
 #include "jsapi.h"
 #include "js/CallAndConstruct.h"
@@ -33,7 +34,16 @@ bool Controller(JSContext* cx, unsigned argc, JS::Value* vp) {
 bool Ready(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto args = JS::CallArgsFromVp(argc, vp);
   State& s = *static_cast<State*>(WebKit::Owner(args));
-  if (!Container(cx, args, "get ready") || !CheckReady(s)) return false;
+  // PRO keeps the WebIDL brand-check TypeError pending but returns the same
+  // ready promise and succeeds at the native boundary. The pending exception
+  // reaches the host after the script finishes; page JS try/catch does not
+  // observe a thrown exception. Keep that control-flow split explicit.
+  if (!Container(cx, args, "get ready")) {
+    CaptureHostBoundaryFailure(cx);
+    args.rval().setObject(*s.ready);
+    return JS_WrapValue(cx, args.rval());
+  }
+  if (!CheckReady(s)) return false;
   args.rval().setObject(*s.ready);
   return JS_WrapValue(cx, args.rval());
 }

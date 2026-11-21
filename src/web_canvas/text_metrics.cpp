@@ -1,6 +1,7 @@
 // TextMetrics from the font owner. The 2D context stores the ctx.font shorthand;
 // measurement is the shaping owner's (web_geometry), which selects the same fonts
 // the element layout uses, so a width here and an offsetWidth there agree.
+#include "runtime/cf_access_log.h"
 #include "web_canvas/internal.h"
 
 #include <memory>
@@ -55,7 +56,8 @@ bool MeasureText(JSContext* cx, unsigned argc, JS::Value* vp) {
   State& s = *detail::Self(args);
   JS::RootedObject self(cx);
   if (!detail::ContextReceiver(cx, args, &self)) return false;
-  if (!argc) return WebKit::Fail(cx, "measureText requires text");
+  if (!argc) return WebKit::Fail(cx, "measureText requires text");  cf_log::observe("CanvasRenderingContext2D", "measureText", 2);
+
   JS::RootedString text(cx, JS::ToString(cx, args.get(0)));
   if (!text) return false;
   std::u16string units;

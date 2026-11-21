@@ -1,4 +1,5 @@
 #include "interaction/internal.h"
+#include "document_model/state.h"
 #include "runtime/page_helpers.h"
 #include "runtime/native_constructor_trace.h"
 #include "js/GlobalObject.h"
@@ -27,6 +28,19 @@ bool InstallTarget(State& state) {
       nullptr, "EventTarget", TargetConstructor, 0, nullptr, methods, nullptr, nullptr));
   if (!prototype || !Tag(state.cx, prototype, "EventTarget")) return false;
   state.targetPrototype = prototype;
+  // JS_InitClass installed the methods without naming them to the registry, so
+  // the callees stay anonymous at call time unless they are registered here.
+  // JSPropertySpec::Name does not expose the string, so the three names it was
+  // built from are repeated here.
+  static const char* const kTargetMethods[] = {"addEventListener", "removeEventListener",
+                                               "dispatchEvent"};
+  JS::RootedObject prototypeHandle(state.cx, prototype);
+  for (const char* name : kTargetMethods) {
+    JS::RootedValue fn(state.cx);
+    if (!JS_GetProperty(state.cx, prototypeHandle, name, &fn)) return false;
+    if (fn.isObject())
+      document_model::RecordMemberBinding(&fn.toObject(), "EventTarget", name, "call");
+  }
   JS::RootedValue value(state.cx);
   if (!JS_GetProperty(state.cx, state.page, "EventTarget", &value)) return false;
   JS::RootedObject constructor(state.cx, &value.toObject());

@@ -17,7 +17,7 @@ bool GetFragmentDirective(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!entry) return false;
   JS::RootedObject source(cx, entry->object);
   State& factory = entry->factory ? *entry->factory : *entry->owner;
-  FunctionState(args)->Observe("Document", "fragmentDirective", int(ApiAccess::Read));
+  auto __p0trace_0 = FunctionState(args)->ObserveScoped(cx, args, "Document", "fragmentDirective", int(ApiAccess::Read));
   JS::RootedValue result(cx, JS::GetReservedSlot(source, kNodeFragmentDirectiveSlot));
   if (result.isUndefined()) {
     {

@@ -22,6 +22,10 @@ bool Model::Configure(const std::vector<Change>& changes) noexcept {
     double extra_storage_usage = candidate->storage_usage;
     bool extra_storage_persisted = candidate->storage_persisted;
     std::string extra_os_locale = candidate->os_locale;
+    std::optional<int32_t> extra_window_outer_width = candidate->window_outer_width;
+    std::optional<int32_t> extra_window_outer_height = candidate->window_outer_height;
+    std::optional<int32_t> extra_window_screen_x = candidate->window_screen_x;
+    std::optional<int32_t> extra_window_screen_y = candidate->window_screen_y;
     for (const auto& change : changes) {
       const auto& value = change.value;
       if (change.kind == Kind::Navigator) {
@@ -83,6 +87,16 @@ bool Model::Configure(const std::vector<Change>& changes) noexcept {
         else if (change.field == 1) extra_viewport_height = value.integer;
         else if (change.field == 2) extra_device_pixel_ratio = value.number;
         else return false;
+      } else if (change.kind == Kind::Window) {
+        // The frame geometry group (kWindowFields): outer size and screen
+        // position, each independent of the screen and viewport groups.
+        switch (change.field) {
+          case kWindowFieldOuterWidth: extra_window_outer_width = value.integer; break;
+          case kWindowFieldOuterHeight: extra_window_outer_height = value.integer; break;
+          case kWindowFieldScreenX: extra_window_screen_x = value.integer; break;
+          case kWindowFieldScreenY: extra_window_screen_y = value.integer; break;
+          default: return false;
+        }
       } else return false;
     }
     candidate->oscpu = std::move(extra_oscpu);
@@ -99,6 +113,10 @@ bool Model::Configure(const std::vector<Change>& changes) noexcept {
     candidate->storage_usage = extra_storage_usage;
     candidate->storage_persisted = extra_storage_persisted;
     candidate->os_locale = std::move(extra_os_locale);
+    candidate->window_outer_width = extra_window_outer_width;
+    candidate->window_outer_height = extra_window_outer_height;
+    candidate->window_screen_x = extra_window_screen_x;
+    candidate->window_screen_y = extra_window_screen_y;
     candidate->aggregate.configure_navigator(std::move(navigator));
     candidate->aggregate.configure_screen(std::move(screen));
     delete impl_;

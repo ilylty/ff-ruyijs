@@ -20,8 +20,7 @@ bool ReplaceChildren(JSContext* cx, unsigned argc, JS::Value* vp) {
   const NodeKind kind = NodeKind(FunctionSlot(args));
   auto* entry = NodeReceiver(cx, args.thisv(), kind);
   if (!entry) return false;
-  entry->owner->Observe(kind == NodeKind::Element ? "Element" : kind == NodeKind::Document
-      ? "Document" : "DocumentFragment", "replaceChildren", int(ApiAccess::Call));
+  auto __p0trace_0 = entry->owner->ObserveScoped(cx, args, kind == NodeKind::Element ? "Element" : kind == NodeKind::Document ? "Document" : "DocumentFragment", "replaceChildren", int(ApiAccess::Call));
   if (!ReplaceNodeChildren(*entry, args)) return false;
   args.rval().setUndefined(); return true;
 }

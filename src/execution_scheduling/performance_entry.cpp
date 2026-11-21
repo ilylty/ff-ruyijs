@@ -1,4 +1,5 @@
 #include "execution_scheduling/performance.h"
+#include "runtime/cf_access_log.h"
 #include "execution_scheduling/performance_observer.h"
 #include "js/MapAndSet.h"
 #include "js/Wrapper.h"
@@ -23,6 +24,12 @@ bool Receiver(JSContext* cx,JS::HandleValue value,int required,JS::MutableHandle
 }
 bool PerfEntryMember(JSContext* cx,unsigned argc,JS::Value* vp) {
  auto args=JS::CallArgsFromVp(argc,vp);int selector=PerfSelector(args),kind=selector/100,field=selector%100;
+ {
+  const char* iface = kind==Mark||kind==MeasureEntry||kind==Entry ? "PerformanceEntry"
+      : kind==Resource ? "PerformanceResourceTiming"
+      : kind==NavigationEntry ? "PerformanceNavigationTiming" : "PerformanceEntry";
+  cf_log::observe(iface, kPerfSchema[kind].fields[field < kPerfSchema[kind].count ? field : 0], 0);
+ }
  JS::RootedObject self(cx);if(!Receiver(cx,args.thisv(),kind,&self))return false;
  if(kind==Mark||kind==MeasureEntry)args.rval().set(JS::GetReservedSlot(self,EDetail));
  else if(kind==Entry){

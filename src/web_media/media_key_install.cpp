@@ -3,6 +3,8 @@
 #include "js/Object.h"
 #include "js/Conversions.h"
 #include "js/PropertyAndElement.h"
+#include "runtime/exception_capture.h"
+#include "js/Exception.h"
 #include "js/Wrapper.h"
 
 namespace ruyijs::web_media {
@@ -10,7 +12,14 @@ namespace {
 bool NavigatorAccess(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto args = JS::CallArgsFromVp(argc, vp); auto& state = *static_cast<State*>(WebKit::Owner(args));
   JSObject* receiver = args.thisv().isObject() ? js::CheckedUnwrapStatic(&args.thisv().toObject()) : nullptr;
-  if (!receiver || receiver != state.navigator) return WebKit::Fail(cx, "Navigator receiver is incompatible");
+  const bool compatible = receiver && receiver == state.navigator;
+  // PRO keeps the WebIDL brand-check TypeError pending but returns a
+  // successful native call. Capture and clear it while resolving the promise,
+  // then restore it for the host boundary after the native call succeeds.
+  if (!compatible) {
+    (void)WebKit::Fail(cx, "Navigator receiver is incompatible");
+    CaptureHostBoundaryFailure(cx);
+  }
   if (argc < 2) return WebKit::Fail(cx, "requestMediaKeySystemAccess requires keySystem and configurations");
   JS::RootedString key(cx, JS::ToString(cx, args[0])); if (!key) return false;
   JS::RootedObject config(cx, args[1].isObject() ? &args[1].toObject() : nullptr);
@@ -19,7 +28,9 @@ bool NavigatorAccess(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!access) return false;
   JS::SetReservedSlot(access, AccessKeySystem, JS::StringValue(key));
   JS::SetReservedSlot(access, AccessConfiguration, JS::ObjectValue(*config));
-  JS::RootedValue value(cx, JS::ObjectValue(*access)); return PromiseValue(cx, value, args.rval());
+  JS::RootedValue value(cx, JS::ObjectValue(*access));
+  if (!PromiseValue(cx, value, args.rval())) return false;
+  return true;
 }
 }
 

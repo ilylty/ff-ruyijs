@@ -4,8 +4,11 @@
 #include "resource_network/model.h"
 #include "runtime/runtime.h"
 #include "jsapi.h"
+#include "jsfriendapi.h"
+#include "js/CallArgs.h"
 #include "js/CharacterEncoding.h"
 #include "js/CompileOptions.h"
+#include "js/Conversions.h"
 #include "js/Modules.h"
 #include "js/Promise.h"
 #include "js/PropertyAndElement.h"
@@ -16,6 +19,9 @@
 
 namespace ruyijs {
 namespace {
+constexpr size_t kImportMetaPrivateSlot = 0;
+constexpr unsigned kImportMetaResolveArgCount = 1;
+constexpr unsigned kImportMetaResolveSpecifierArg = 0;
 const JSErrorFormatString* TypeErrorFormat(void*, unsigned) {
   static const JSErrorFormatString format{"RUYIJS_MODULE", "{0}", 1, JSEXN_TYPEERR};
   return &format;
@@ -140,24 +146,32 @@ bool ModuleSession::ResolveImport(JS::HandleValue referrer,
   }
   JS::RootedString specifier(cx_, JS::GetModuleRequestSpecifier(cx_, request));
   if (!specifier || !ToUtf8(specifier, &specifierText)) return false;
-  // HTML "resolve a module specifier" without an import map (Firefox's text).
-  const bool relative = specifierText.rfind("/", 0) == 0 || specifierText.rfind("./", 0) == 0 ||
-                        specifierText.rfind("../", 0) == 0;
-  if (!relative && specifierText.find(':') == std::string::npos)
-    return TypeError(cx_, "The specifier “" + specifierText +
-                              "” was a bare specifier, but was not remapped to anything. "
-                              "Relative module specifiers must start with “./”, "
-                              "“../” or “/”.");
-  if (!resource_network::ResolveURL(baseText, specifierText, &url)) {
-    JS_ReportErrorASCII(cx_, "Invalid module URL");
-    return false;
-  }
+  if (!ResolveSpecifier(cx_, baseText, specifierText, &url)) return false;
   if (JSObject* found = Find(url)) {
     module.set(found);
     return true;
   }
   if (fresh) *fresh = true;
   return FetchAndCompile(url, module);
+}
+
+bool ModuleSession::ResolveSpecifier(JSContext* cx,
+                                    const std::string& base,
+                                    const std::string& specifier,
+                                    std::string* url) {
+  // HTML "resolve a module specifier" without an import map (Firefox's text).
+  const bool relative = specifier.rfind("/", 0) == 0 || specifier.rfind("./", 0) == 0 ||
+                        specifier.rfind("../", 0) == 0;
+  if (!relative && specifier.find(':') == std::string::npos)
+    return TypeError(cx, "The specifier “" + specifier +
+                             "” was a bare specifier, but was not remapped to anything. "
+                             "Relative module specifiers must start with “./”, "
+                             "“../” or “/”.");
+  if (!resource_network::ResolveURL(base, specifier, url)) {
+    JS_ReportErrorASCII(cx, "Invalid module URL");
+    return false;
+  }
+  return true;
 }
 
 bool ModuleSession::DocumentBase(std::string* base) {
@@ -178,11 +192,14 @@ bool ModuleSession::DocumentBase(std::string* base) {
   return ToUtf8(text, base);
 }
 
-bool ModuleSession::Load(const std::string& url, const std::string& source,
-                         JS::MutableHandleObject module) {
+bool ModuleSession::Load(const std::string& recordKey,
+                         const std::string& privateUrl,
+                         const std::string& source,
+                         JS::MutableHandleObject module,
+                         const ModuleCompilePosition& position) {
   Scope scope(*this);
   if (!hostDefined_) return false;
-  if (JSObject* found = Find(url)) {
+  if (JSObject* found = Find(recordKey)) {
     module.set(found);
   } else {
     JS::RootedString bytes(cx_, JS_NewStringCopyUTF8N(
@@ -193,13 +210,15 @@ bool ModuleSession::Load(const std::string& url, const std::string& source,
     JS::SourceText<char16_t> text;
     if (!text.initMaybeBorrowed(cx_, chars)) return false;
     JS::CompileOptions options(cx_);
-    options.setFileAndLine(url.c_str(), 1);
+    options.setFileAndLine(privateUrl.c_str(), position.line);
+    if (position.column > 1)
+      options.setColumn(JS::ColumnNumberOneOrigin(position.column));
     JS::RootedObject compiled(cx_, JS::CompileModule(cx_, options, text));
-    if (!compiled || !SetPrivateUrl(compiled, url)) return false;
+    if (!compiled || !SetPrivateUrl(compiled, privateUrl)) return false;
     Record record;
-    record.url = url;
+    record.url = privateUrl;
     record.module = std::make_unique<JS::PersistentRootedObject>(cx_, compiled);
-    records_.emplace(url, std::move(record));
+    records_.emplace(recordKey, std::move(record));
     module.set(compiled);
   }
   root_ = module;
@@ -276,11 +295,44 @@ bool ModuleSession::DynamicRejected(JSContext* cx, JS::HandleValue host, JS::Han
   return JS::FinishLoadingImportedModuleFailed(cx, payload, error);
 }
 
+bool ModuleSession::ImportMetaResolve(JSContext* cx, unsigned argc, JS::Value* vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  JS::RootedValue privateValue(
+      cx, js::GetFunctionNativeReserved(&args.callee(), kImportMetaPrivateSlot));
+  JS::RootedString specifier(
+      cx, JS::ToString(cx, args.get(kImportMetaResolveSpecifierArg)));
+  if (!specifier) return false;
+  if (!privateValue.isString()) {
+    JS_ReportErrorASCII(cx, "Module referrer has no URL");
+    return false;
+  }
+  JS::RootedString base(cx, privateValue.toString());
+  std::string baseText, specifierText, url;
+  if (!ruyijs::ToUTF8(cx, base, &baseText) ||
+      !ruyijs::ToUTF8(cx, specifier, &specifierText)) return false;
+
+  // import.meta.resolve and static imports share one URL-resolution rule.
+  if (!ResolveSpecifier(cx, baseText, specifierText, &url)) return false;
+  JS::RootedString result(cx, JS_NewStringCopyUTF8N(
+      cx, JS::UTF8Chars(url.data(), url.size())));
+  if (!result) return false;
+  args.rval().setString(result);
+  return true;
+}
+
 bool ModuleSession::PopulateImportMeta(JSContext* cx, JS::HandleObject module,
                                        JS::HandleObject meta) {
   JS::RootedValue value(cx, JS::GetModulePrivate(module));
   if (!value.isString()) return true;
-  return JS_DefineProperty(cx, meta, "url", value, JSPROP_ENUMERATE);
+  if (!JS_DefineProperty(cx, meta, "url", value, JSPROP_ENUMERATE)) return false;
+
+  JSFunction* resolve = js::DefineFunctionWithReserved(
+      cx, meta, "resolve", &ModuleSession::ImportMetaResolve,
+      kImportMetaResolveArgCount, JSPROP_ENUMERATE);
+  if (!resolve) return false;
+  JSObject* resolveObject = JS_GetFunctionObject(resolve);
+  js::SetFunctionNativeReserved(resolveObject, kImportMetaPrivateSlot, value);
+  return true;
 }
 
 bool ModuleSession::LinkLoaded(JSContext* cx, JS::HandleValue) {

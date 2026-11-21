@@ -59,7 +59,7 @@ bool CssColorSupported(std::string_view text,unsigned depth) {
   }
   if(name=="color") {
     auto split=body.find(' ');if(split==body.npos) return false;
-    const auto spaces=CssSplit("srgb,srgb-linear,display-p3,a98-rgb,prophoto-rgb,rec2020,xyz,xyz-d50,xyz-d65",',');
+    const auto spaces=CssSplit("srgb,srgb-linear,display-p3,display-p3-linear,a98-rgb,prophoto-rgb,rec2020,xyz,xyz-d50,xyz-d65",',');
     if(std::find(spaces.begin(),spaces.end(),body.substr(0,split))==spaces.end()) return false;
     return Channels(body.substr(split+1),name);
   }

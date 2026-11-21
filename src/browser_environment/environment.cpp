@@ -63,7 +63,15 @@ bool State::ApplyChanges(std::vector<Change>& changes) {
     if (change.kind == Kind::Media) { media = true; continue; }
     size_t owner = 0;
     while (owner < kOwnerGroupCount && kOwnerGroups[owner].kind != change.kind) ++owner;
-    if (owner < kOwnerGroupCount) { owners[owner] = true; continue; }
+    // Kind::Window is listed with the owner groups so the profile schema and
+    // the snapshot share one registry, but the frame geometry belongs to the
+    // model: it is resolved here (against the screen group) and read back
+    // through Model::Read, so it stays a model change and never becomes an
+    // owner port push.
+    if (owner < kOwnerGroupCount && change.kind != Kind::Window) {
+      owners[owner] = true;
+      continue;
+    }
     modelChanges.push_back(change);
   }
   JS::RootedObject nextLanguages(cx, languages);

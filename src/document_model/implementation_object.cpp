@@ -38,7 +38,7 @@ bool Implementation(JSContext* cx, unsigned argc, JS::Value* vp) {
   JS::RootedObject source(cx, args.thisv().isObject()
       ? js::CheckedUnwrapStatic(&args.thisv().toObject()) : nullptr);
   if (!DocumentReceiver(cx, source)) return false;
-  factory.Observe("Document", "implementation", int(ApiAccess::Read));
+  auto __p0trace_0 = factory.ObserveScoped(cx, args, "Document", "implementation", int(ApiAccess::Read));
   JS::RootedValue result(cx, JS::GetReservedSlot(source, 6));
   if (result.isUndefined()) {
     if (!Build(factory, 2, source, &result)) return false;

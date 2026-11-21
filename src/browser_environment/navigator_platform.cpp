@@ -29,7 +29,7 @@ bool GetGamepads(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto args = JS::CallArgsFromVp(argc, vp);
   State* state = Owner(cx, args);
   if (!state) return false;
-  state->Observe("Navigator", "getGamepads", int(ApiAccess::Call));
+  auto __p0trace_0 = state->ObserveScoped(cx, args, "Navigator", "getGamepads", int(ApiAccess::Call));
   JS::RootedObject result(cx, JS::NewArrayObject(cx, 0));
   if (!result) return false;
   args.rval().setObject(*result);
@@ -39,7 +39,7 @@ bool SendBeacon(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto args = JS::CallArgsFromVp(argc, vp);
   State* state = Owner(cx, args);
   if (!state) return false;
-  state->Observe("Navigator", "sendBeacon", int(ApiAccess::Call));
+  auto __p0trace_1 = state->ObserveScoped(cx, args, "Navigator", "sendBeacon", int(ApiAccess::Call));
   if (!argc) return Error(cx, "Navigator.sendBeacon requires a URL");
   JS::RootedString input(cx, JS::ToString(cx, args.get(0)));
   std::string url;

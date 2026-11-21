@@ -1,6 +1,7 @@
 #ifndef RUYIJS_RUNTIME_MODULE_SESSION_H
 #define RUYIJS_RUNTIME_MODULE_SESSION_H
 
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <string>
@@ -39,11 +40,22 @@ class ModuleSession final {
   ModuleSession(const ModuleSession&) = delete;
   ModuleSession& operator=(const ModuleSession&) = delete;
 
-  // Compile or retrieve the canonical URL, load its static dependency graph,
-  // and return the module record.  Imported bytes are fetched synchronously
-  // through the existing Resource Network owner.
-  bool Load(const std::string& url, const std::string& source,
-            JS::MutableHandleObject module);
+  // Parser-inserted inline modules share the document base URL as their
+  // private URL, so each one needs a distinct internal map key while
+  // import.meta.url, static imports and stack filenames keep the real URL.
+  struct ModuleCompilePosition {
+    uint32_t line;
+    uint32_t column;
+    ModuleCompilePosition(uint32_t lineValue = 1, uint32_t columnValue = 1)
+        : line(lineValue), column(columnValue) {}
+  };
+  // Compile or retrieve the record keyed by |recordKey|, load its static
+  // dependency graph, and return the module record. |privateUrl| is the URL
+  // exposed through the module private value. Imported bytes are fetched
+  // synchronously through the existing Resource Network owner.
+  bool Load(const std::string& recordKey, const std::string& privateUrl,
+            const std::string& source, JS::MutableHandleObject module,
+            const ModuleCompilePosition& position = ModuleCompilePosition());
   // Starts ModuleEvaluate and returns its promise (including a pending TLA
   // promise).  The caller intentionally does not wait for or drain this value.
   bool Evaluate(JS::HandleObject module, JS::MutableHandleValue promise);
@@ -69,6 +81,10 @@ class ModuleSession final {
                                  JS::ColumnNumberOneOrigin);
   static bool PopulateImportMeta(JSContext*, JS::HandleObject,
                                  JS::HandleObject);
+  static bool ImportMetaResolve(JSContext*, unsigned argc, JS::Value* vp);
+  static bool ResolveSpecifier(JSContext*, const std::string& base,
+                               const std::string& specifier,
+                               std::string* url);
   static bool LinkLoaded(JSContext*, JS::HandleValue);
   static bool LinkRejected(JSContext*, JS::HandleValue, JS::HandleValue);
   // A dynamic import() whose module is new loads its static graph first (as

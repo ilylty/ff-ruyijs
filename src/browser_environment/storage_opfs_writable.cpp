@@ -164,7 +164,7 @@ bool OpfsCreateWritable(JSContext* cx, unsigned argc, JS::Value* vp) {
   State& s = Of(args);
   auto* node = OpfsNodeOf(args.thisv(), &kOpfsFileClass);
   if (!node) { WebKit::FailBrand(cx, args, "FileSystemFileHandle"); return OpfsRejectPending(cx, args.rval()); }
-  s.Observe("FileSystemFileHandle", "createWritable", 0);
+  auto __p0trace_0 = s.ObserveScoped(cx, args, "FileSystemFileHandle", "createWritable", 0);
   if (!OpfsTree::Live(**node)) return OpfsRejectStatus(s, OpfsStatus::NotFound, args.rval());
   if ((*node)->exclusiveLock)
     return OpfsReject(s, "NoModificationAllowedError", "No modification allowed", args.rval());

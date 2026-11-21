@@ -75,8 +75,9 @@ bool Illegal(JSContext* cx, unsigned argc, JS::Value* vp) {
 bool WindowCookieStore(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto args = JS::CallArgsFromVp(argc, vp);
   State& s = *static_cast<State*>(WebKit::Owner(args));
-  JSObject* self = args.thisv().isObject() ? js::CheckedUnwrapStatic(&args.thisv().toObject())
-                                          : nullptr;
+  JSObject* self = args.thisv().isObject()
+      ? UnwrapPageProxy(js::CheckedUnwrapStatic(&args.thisv().toObject()))
+      : nullptr;
   if (self != s.page.get())
     return WebKit::Fail(cx, "'get cookieStore' called on an object that does not implement "
                             "interface Window.");

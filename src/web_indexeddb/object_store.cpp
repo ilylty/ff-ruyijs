@@ -1,4 +1,5 @@
 #include "web_indexeddb/keys.h"
+#include "runtime/cf_access_log.h"
 #include "js/Object.h"
 #include "js/PropertyAndElement.h"
 #include "js/Wrapper.h"
@@ -108,6 +109,26 @@ bool StoreMethod(JSContext* cx,unsigned n,JS::Value* vp) {
     }
     if(!generate && !EncodeKey(caller,keyValue,&key))return false;
   } else if(!ReadQuery(caller,queryInput,op,&query))return false;
+  {
+    // One indexedDBOps pair per store request. The store name is the only stable
+    // identity the layer exposes here; transaction/database ids are not retained
+    // on the store wrapper, so they are reported as absent (-1).
+    static const char* const opNames[] = {"put", "add", "delete", "clear", "get",
+                                         "getKey", "getAll", "getAllKeys", "getAllRecords",
+                                         "count"};
+    const char* opName = (op >= 0 && op < 10) ? opNames[op] : "request";
+    std::u16string storeName;
+    JS::RootedValue nameValue(cx, JS::GetReservedSlot(self, StoreName));
+    if (!Text(cx, nameValue, &storeName)) return false;
+    const std::string storeUtf8(storeName.begin(), storeName.end());
+    const std::string modeUtf8(mode.begin(), mode.end());
+    const std::string keyUtf8(key.begin(), key.end());
+    cf_log::storage_record("start", opName, "", 0, -1, 0, storeUtf8.c_str(), 0,
+                           "", -1, modeUtf8.c_str(), "default", keyUtf8.c_str(),
+                           "", 0, "", write ? "structuredClone" : "",
+                           0, "", 0, 0,
+                           true, "");
+  }
   if(s->store->jobs.size()>=1024)return Throw(caller,"QuotaExceededError");
   std::vector<uint8_t> bytes;
   IndexKeys indexKeys;

@@ -24,9 +24,9 @@ bool Read(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto* entry = ControlReceiver(cx, args.thisv(), m.iface);
   if (!entry) return false;
   double value = 0;
+  auto __p0trace_0 = entry->owner->ObserveScoped(cx, args, m.iface, m.name, int(ApiAccess::Read));
   {
     JSAutoRealm realm(cx, entry->owner->page);
-    entry->owner->Observe(m.iface, m.name, int(ApiAccess::Read));
     if (m.dormant) return TypeError(cx, "Public progress member has no initialized implementation");
     if (*m.attr && !entry->owner->Check(entry->owner->model.MeterValue(entry->key, m.attr, &value))) return false;
   }
@@ -41,9 +41,9 @@ bool Write(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!entry) return false;
   double value = 0;
   if (!m.dormant && !JS::ToNumber(cx, args.get(0), &value)) return false;
+  auto __p0trace_1 = entry->owner->ObserveScoped(cx, args, m.iface, m.name, int(ApiAccess::Write));
   {
     JSAutoRealm realm(cx, entry->owner->page);
-    entry->owner->Observe(m.iface, m.name, int(ApiAccess::Write));
     if (m.dormant) return TypeError(cx, "Public progress member has no initialized implementation");
     if (!entry->owner->Check(entry->owner->model.SetMeterValue(entry->key, m.attr, value))) return false;
   }

@@ -3,6 +3,7 @@
 #include "browser_environment/model.h"
 #include "domain/browser_environment/browser_environment.h"
 #include "domain/browser_environment/touch_exposure.h"
+#include <optional>
 namespace ruyijs::browser_environment {
 struct Model::Impl {
   ruyijs::domain::browser_environment::BrowserEnvironmentAggregate aggregate{1};
@@ -43,6 +44,18 @@ struct Model::Impl {
   double storage_usage = 0.0;
   bool storage_persisted = false;
   std::string os_locale;  // "": the host OS locale
+  // kWindowFields (window frame geometry). Unset (std::nullopt) means "not
+  // configured": outerWidth/outerHeight then report the screen size and
+  // screenX/screenY the screen work-area origin, which is the geometry this
+  // runtime reported before the group existed. A real Firefox window's frame is
+  // smaller than the whole screen it sits on and larger than its content box,
+  // so pinning these apart from the viewport group removes the outer == screen
+  // signature. -1 is a legal configured value (a window dragged left of the
+  // primary screen), so the "unset" state is separate.
+  std::optional<int32_t> window_outer_width;
+  std::optional<int32_t> window_outer_height;
+  std::optional<int32_t> window_screen_x;
+  std::optional<int32_t> window_screen_y;
 };
 }
 #endif

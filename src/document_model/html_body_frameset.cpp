@@ -36,9 +36,9 @@ bool ReflectedGet(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!entry) return false;
   auto& state = *entry->owner;
   JS::RootedValue result(cx);
+  auto __p0trace_0 = state.ObserveScoped(cx, args, m.iface, m.name, int(ApiAccess::Read));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe(m.iface, m.name, int(ApiAccess::Read));
     std::optional<DomString> attr;
     if (!state.Check(state.model.GetAttribute(entry->key, m.attr, &attr))) return false;
     if (!Value(cx, DomStringView(attr.value_or(u"")), &result)) return false;
@@ -55,9 +55,9 @@ bool ReflectedSet(JSContext* cx, unsigned argc, JS::Value* vp) {
   DomString text;
   if (m.null_empty && args.get(0).isNull()) text.clear();
   else if (!ControlString(cx, args.get(0), &text)) return false;
+  auto __p0trace_1 = state.ObserveScoped(cx, args, m.iface, m.name, int(ApiAccess::Write));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe(m.iface, m.name, int(ApiAccess::Write));
     if (!state.Check(state.model.SetAttribute(entry->key, m.attr, text))) return false;
   }
   args.rval().setUndefined(); return true;
@@ -74,7 +74,7 @@ bool HandlerGet(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto* entry = ControlReceiver(cx, args.thisv(), iface, ("get " + std::string(name)).c_str());
   if (!entry) return false;
   auto& state = *entry->owner;
-  state.Observe(iface, name, int(ApiAccess::Read));
+  auto __p0trace_2 = state.ObserveScoped(cx, args, iface, name, int(ApiAccess::Read));
   if (entry->key.document != state.main.document) { args.rval().setNull(); return true; }
   {
     JSAutoRealm realm(cx, state.page);
@@ -90,7 +90,7 @@ bool HandlerSet(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto* entry = ControlReceiver(cx, args.thisv(), iface, ("set " + std::string(name)).c_str());
   if (!entry) return false;
   auto& state = *entry->owner;
-  state.Observe(iface, name, int(ApiAccess::Write));
+  auto __p0trace_3 = state.ObserveScoped(cx, args, iface, name, int(ApiAccess::Write));
   if (entry->key.document != state.main.document) { args.rval().setUndefined(); return true; }
   JS::RootedValue value(cx, args.get(0));
   {

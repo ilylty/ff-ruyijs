@@ -1,5 +1,7 @@
 #ifndef RUYIJS_SCHEDULING_STATE_H
 #define RUYIJS_SCHEDULING_STATE_H
+#include "runtime/cf_access_log.h"
+#include "runtime/cf_access_trace.h"
 #include "execution_scheduling/realm.h"
 #include "domain/execution_scheduling/public_handles.h"
 #include <chrono>
@@ -54,7 +56,14 @@ struct State {
   ApiMonitorPort apiMonitor = nullptr;
   void* apiMonitorContext = nullptr;
   void Observe(const char* iface, const char* member, int type) const {
+    cf_log::observe(iface, member, type);
     if (apiMonitor) apiMonitor(apiMonitorContext, iface, member, type);
+  }
+  ruyijs::CfAccessTrace ObserveScoped(JSContext* cx, const JS::CallArgs& args,
+                              const char* iface, const char* member, int type) const {
+    if (apiMonitor) apiMonitor(apiMonitorContext, iface, member, type);
+    return ruyijs::CfAccessTrace(cx, args, iface, member, type,
+                                 cf_log::trace_handle() != nullptr);
   }
   // Extra browsing realms (iframes) this Context-level surface was installed
   // into. The clock and task queues stay one owner; public handles are local

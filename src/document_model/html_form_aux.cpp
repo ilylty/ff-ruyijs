@@ -44,9 +44,9 @@ bool Read(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!entry) return false;
   auto& state = *entry->owner;
   JS::RootedValue result(cx);
+  auto __p0trace_0 = state.ObserveScoped(cx, args, m.iface, m.name, int(m.method >= 0 ? ApiAccess::Call : ApiAccess::Read));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe(m.iface, m.name, int(m.method >= 0 ? ApiAccess::Call : ApiAccess::Read));
     if (m.kind == Dormant) return TypeError(cx, "Public form auxiliary member has no initialized implementation");
     if (m.kind == Null) result.setNull();
     else if (m.kind == Control) {
@@ -69,9 +69,9 @@ bool Write(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto& state = *entry->owner;
   DomString value;
   if (m.kind != Dormant && !ControlString(cx, args.get(0), &value)) return false;
+  auto __p0trace_1 = state.ObserveScoped(cx, args, m.iface, m.name, int(ApiAccess::Write));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe(m.iface, m.name, int(ApiAccess::Write));
     if (m.kind == Dormant) return TypeError(cx, "Public form auxiliary member has no initialized implementation");
     if (!state.Check(state.model.SetAttribute(entry->key, u"for", value))) return false;
   }

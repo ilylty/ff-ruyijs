@@ -36,7 +36,7 @@ bool Message::Write(State& sender, JS::HandleValue value, JS::HandleValue transf
   if (buffer.write(sender.cx, value, transfer, JS::CloneDataPolicy(), &cloneCallbacks, this)) return true;
   if (!error && JS_IsExceptionPending(sender.cx)) return false;
   JS_ClearPendingException(sender.cx);
-  return CloneError(sender);
+  return CloneError(sender, value);
 }
 bool Message::Read(State& target, JS::MutableHandleValue value) {
   destination = &target;

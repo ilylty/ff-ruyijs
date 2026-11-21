@@ -2,20 +2,59 @@
 #include "runtime/weak_object.h"
 #include "interaction/realm.h"
 #include "runtime/page_helpers.h"
+#include "runtime/member_registry.h"
 #include "jsfriendapi.h"
 #include "js/Object.h"
 #include "js/PropertyAndElement.h"
 #include "js/String.h"
 #include "js/Symbol.h"
+#include <cstring>
 #include <new>
 namespace ruyijs::document_model {
+namespace {
+// One wrapper around every State::Function native. The old funnel recorded a
+// member access at native entry, where args.rval() was still unset, so all
+// DOM traversal / attribute reads showed value=null in the trace. A scope that
+// spans the whole native call emits the same record at exit with real values.
+// This covers every Method/Accessor/Constructor installed through State::
+// Function without touching the ~189 document_model implementation files.
+bool TracedNative(JSContext* cx, unsigned argc, JS::Value* vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  JSObject* callee = &args.callee();
+  JSNative callback = reinterpret_cast<JSNative>(
+      js::GetFunctionNativeReserved(callee, 2).toPrivate());
+  if (!callback) return false;
+  const char* iface = nullptr;
+  const char* member = nullptr;
+  const char* kind = nullptr;
+  State* state = static_cast<State*>(
+      js::GetFunctionNativeReserved(callee, 0).toPrivate());
+  if (!LookupMemberBinding(callee, &iface, &member, &kind) || !state) {
+    return callback(cx, argc, vp);
+  }
+  const int type = std::strcmp(kind, "get") == 0      ? 0
+                   : std::strcmp(kind, "set") == 0    ? 1
+                   : std::strcmp(kind, "construct") == 0 ? 3
+                                                        : 2;
+  // Build the scope directly: State::ObserveScoped also fires apiMonitor, and
+  // natives already converted in P0 batch 2 do that themselves. Calling it here
+  // would double-notify the host monitor.
+  ruyijs::CfAccessTrace scope(cx, args, iface, member, type,
+                              cf_log::trace_handle() != nullptr);
+  const bool ok = callback(cx, argc, vp);
+  scope.Finish(ok);
+  return ok;
+}
+}  // namespace
 JSObject* State::Function(JSNative callback, const char* name, unsigned length,
                            int32_t slot, unsigned flags) {
-  JS::RootedFunction function(cx, js::NewFunctionWithReserved(cx, callback, length, flags, name));
+  JS::RootedFunction function(cx, js::NewFunctionWithReserved(cx, TracedNative, length, flags, name));
   if (!function) return nullptr;
   JS::RootedObject object(cx, JS_GetFunctionObject(function));
   js::SetFunctionNativeReserved(object, 0, JS::PrivateValue(this));
   js::SetFunctionNativeReserved(object, 1, JS::Int32Value(slot));
+  js::SetFunctionNativeReserved(object, 2, JS::PrivateValue(
+      reinterpret_cast<void*>(callback)));
   if (!functions.get().append(object)) { JS_ReportOutOfMemory(cx); return nullptr; }
   return object;
 }
@@ -23,20 +62,25 @@ bool State::Method(const char* iface, const char* name, JSNative callback,
                    unsigned length, int32_t slot) {
   JS::RootedObject target(cx, Find(iface)->prototype);
   JS::RootedObject method(cx, Function(callback, name, length, slot));
-  return method && JS_DefineProperty(cx, target, name, method, JSPROP_ENUMERATE);
+  if (!method) return false;
+  RecordMemberBinding(method, iface, name, "call");
+  return JS_DefineProperty(cx, target, name, method, JSPROP_ENUMERATE);
 }
 bool State::Accessor(const char* iface, const char* name, JSNative getter,
                      int32_t slot, JSNative setter) {
   JS::RootedObject target(cx, Find(iface)->prototype);
   std::string getName = std::string("get ") + name;
   JS::RootedObject get(cx, Function(getter, getName.c_str(), 0, slot));
+  if (!get) return false;
+  RecordMemberBinding(get, iface, name, "get");
   JS::RootedObject set(cx);
   if (setter) {
     std::string setName = std::string("set ") + name;
     set = Function(setter, setName.c_str(), 1, slot);
     if (!set) return false;
+    RecordMemberBinding(set, iface, name, "set");
   }
-  return get && JS_DefineProperty(cx, target, name, get, set, JSPROP_ENUMERATE);
+  return JS_DefineProperty(cx, target, name, get, set, JSPROP_ENUMERATE);
 }
 bool State::DefineInterface(const char* name, JS::HandleObject parent, int32_t kind,
                             bool inherit_constructor) {

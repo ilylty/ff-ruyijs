@@ -4,8 +4,10 @@
 #include "web_canvas/internal.h"
 
 #include <cstring>
+#include <string>
 #include "interaction/realm.h"
 
+#include "js/Exception.h"
 #include "js/PropertyAndElement.h"
 #include "js/Realm.h"
 #include "runtime/native_constructor_trace.h"
@@ -19,9 +21,31 @@ const JSClass kOffscreenClass = {"OffscreenCanvas",
 namespace {
 enum { kWidthSlot = 0, kHeightSlot = 1, kContextSlot = 2 };
 
-bool OffscreenReceiver(JSContext* cx, JS::HandleValue self, JS::MutableHandleObject out) {
-  return WebKit::Check(cx, self, &kOffscreenClass, out,
-                       "OffscreenCanvas member called on an incompatible receiver");
+bool OffscreenReceiver(JSContext* cx, const JS::CallArgs& args,
+                       JS::MutableHandleObject out) {
+  return WebKit::CheckBrand(cx, args, &kOffscreenClass, out, "OffscreenCanvas");
+}
+
+// Promise-returning OffscreenCanvas members reject with the WebIDL brand error
+// instead of throwing it synchronously. A rejected result is already in
+// args.rval() and the caller must stop the native operation.
+bool OffscreenReceiverReject(State& state, const JS::CallArgs& args,
+                             JS::MutableHandleObject out, bool* rejected) {
+  JSContext* cx = state.cx;
+  *rejected = false;
+  if (args.thisv().isObject() &&
+      JS::GetClass(&args.thisv().toObject()) == &kOffscreenClass) {
+    out.set(&args.thisv().toObject());
+    return true;
+  }
+  std::string text;
+  if (!WebKit::BrandText(cx, args, "OffscreenCanvas", &text)) return false;
+  WebKit::Fail(cx, text.c_str());
+  JS::RootedValue error(cx);
+  if (!JS_GetPendingException(cx, &error)) return false;
+  JS_ClearPendingException(cx);
+  *rejected = true;
+  return state.kit.RejectWith(error, args.rval());
 }
 
 bool Dimension(JSContext* cx, JS::HandleValue value, uint32_t* out) {
@@ -77,7 +101,7 @@ bool OffscreenGet(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto args = JS::CallArgsFromVp(argc, vp);
   const int32_t slot = WebKit::Slot(args);
   JS::RootedObject self(cx);
-  if (!OffscreenReceiver(cx, args.thisv(), &self)) return false;
+  if (!OffscreenReceiver(cx, args, &self)) return false;
   args.rval().set(JS::GetReservedSlot(self, slot));
   return true;
 }
@@ -87,7 +111,7 @@ bool OffscreenSet(JSContext* cx, unsigned argc, JS::Value* vp) {
   const int32_t slot = WebKit::Slot(args);
   State& state = *detail::Self(args);
   JS::RootedObject self(cx);
-  if (!OffscreenReceiver(cx, args.thisv(), &self)) return false;
+  if (!OffscreenReceiver(cx, args, &self)) return false;
   args.rval().setUndefined();
   uint32_t value = 0;
   if (!Dimension(cx, args.get(0), &value)) return false;
@@ -99,7 +123,7 @@ bool OffscreenGetContext(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto args = JS::CallArgsFromVp(argc, vp);
   State& state = *detail::Self(args);
   JS::RootedObject self(cx);
-  if (!OffscreenReceiver(cx, args.thisv(), &self)) return false;
+  if (!OffscreenReceiver(cx, args, &self)) return false;
   if (args.length() == 0) return WebKit::Fail(cx, "getContext requires a context type");
   JS::RootedString text(cx, JS::ToString(cx, args.get(0)));
   if (!text) return false;
@@ -139,7 +163,9 @@ bool OffscreenConvertToBlob(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto args = JS::CallArgsFromVp(argc, vp);
   State& state = *detail::Self(args);
   JS::RootedObject self(cx);
-  if (!OffscreenReceiver(cx, args.thisv(), &self)) return false;
+  bool rejected = false;
+  if (!OffscreenReceiverReject(state, args, &self, &rejected)) return false;
+  if (rejected) return true;
   const bool legacy=WebKit::Slot(args)==1;
   bool supported = true;
   if (legacy && !args.get(0).isUndefined()) {

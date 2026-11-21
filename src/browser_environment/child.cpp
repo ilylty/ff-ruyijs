@@ -57,10 +57,9 @@ bool Environment::CommitAgentCluster(const std::string& header) {
 // languages array and applies the same locale and timezone to its Intl/Date;
 // the values come from the one owner.
 bool State::Inherit() {
-  FieldValue list, language, timezone;
+  FieldValue list, timezone;
   const Model& source = shared ? shared->model : model;
   if (!source.Read(Kind::Navigator, 10, &list) ||
-      !source.Read(Kind::Locale, 1, &language) ||
       !source.Read(Kind::Locale, 0, &timezone)) {
     JS_ReportOutOfMemory(cx);
     return false;
@@ -77,9 +76,11 @@ bool State::Inherit() {
   languages = array;
   JS::Realm* target = JS::GetObjectRealmOrNull(page);
   // xpc_LocalizeRuntime: the Intl default locale is the OS regional-prefs
-  // locale; navigator.language only feeds Accept-Language. "" keeps the
-  // engine's own default, which is the host OS locale.
-  if (!language.text.empty()) JS::SetRealmLocaleOverride(target, language.text.c_str());
+  // locale, reconciled with navigator.language (locale_binding.cpp) so the two
+  // never disagree. A child realm and a later top-level document go through the
+  // same reconciliation, so page, iframe and worker realms agree.
+  const std::string locale = BindLocale();
+  if (!locale.empty()) JS::SetRealmLocaleOverride(target, locale.c_str());
   if (!timezone.text.empty()) JS::SetRealmTimezoneOverride(target, timezone.text.c_str());
   ready = true;
   return true;

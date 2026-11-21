@@ -1,5 +1,7 @@
 #ifndef RUYIJS_DOCUMENT_STATE_H
 #define RUYIJS_DOCUMENT_STATE_H
+#include "runtime/cf_access_log.h"
+#include "runtime/cf_access_trace.h"
 #include "runtime/secure_slot.h"
 #include "document_model/realm.h"
 #include "document_model/model.h"
@@ -238,7 +240,14 @@ struct State {
   uint32_t imageLoadBlockers = 0;
   // Reports one access to an install-registered member of this owner.
   void Observe(const char* iface, const char* member, int type) const {
+    cf_log::observe(iface, member, type);
     if (apiMonitor) apiMonitor(apiMonitorContext, iface, member, type);
+  }
+  ruyijs::CfAccessTrace ObserveScoped(JSContext* cx, const JS::CallArgs& args,
+                              const char* iface, const char* member, int type) const {
+    if (apiMonitor) apiMonitor(apiMonitorContext, iface, member, type);
+    return ruyijs::CfAccessTrace(cx, args, iface, member, type,
+                                 cf_log::trace_handle() != nullptr);
   }
   // Event handler attributes: the original EventTarget/Event natives saved at
   // install time and one invoker per event type (event_handlers.cpp).
@@ -334,6 +343,18 @@ struct State {
   bool DefineInterface(const char*, JS::HandleObject, int32_t, bool inherit_constructor = true);
   bool TraceInterface(const char*);
 };
+
+// DOM member naming for the trace layer. ruyitrace reports every WebIDL access
+// under its interface name; both the DocumentModel and the WebKit bridges record
+// their members in one registry (runtime/member_registry.h) so the single call
+// hook that already sees every native invocation can name them too.
+//
+// Declared here because the DocumentModel registers far more members than the
+// WebKit bridges and already includes this header.
+void RecordMemberBinding(JSObject* member, const char* iface, const char* name,
+                         const char* kind);
+bool LookupMemberBinding(const JSObject* member, const char** iface,
+                         const char** name, const char** kind);
 extern const JSClass kNodeClass, kExceptionClass;
 Wrapper* ShadowReceiver(JSContext*, JS::HandleValue);
 bool ReadShadowOptions(JSContext*, JS::HandleValue, ShadowOptions*);
@@ -357,6 +378,11 @@ void NotifyTree(void*, DocumentId, const std::vector<NodeKey>&, const std::vecto
 // The node-cap collection request this owner binds on Model (T41).
 void ReclaimNow(void*);
 State* FunctionState(const JS::CallArgs&);
+// WebIDL receiver check for the Window interface: `this` must be the global
+// itself (or null/undefined, meaning the callee's global). Firefox rejects a
+// scope object with `__proto__ = window` reading `document`, so this stays
+// strict identity rather than a prototype-chain search.
+bool IsGlobalReceiver(State&, const JS::CallArgs&);
 int32_t FunctionSlot(const JS::CallArgs&);
 Wrapper* Receiver(State&, const JS::CallArgs&, NodeKind* = nullptr);
 Wrapper* DocumentReceiver(JSContext*, JS::HandleObject, const JS::CallArgs* args = nullptr);

@@ -39,9 +39,9 @@ bool Get(JSContext* cx, unsigned argc, JS::Value* vp) {
   State& state = *entry->owner;
   const auto& property = kProperties[FunctionSlot(args)];
   std::optional<DomString> value;
+  auto __p0trace_0 = state.ObserveScoped(cx, args, "HTMLMetaElement", property.name, int(ApiAccess::Read));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe("HTMLMetaElement", property.name, int(ApiAccess::Read));
     if (!state.Check(state.model.GetAttribute(entry->key, property.attribute, &value)))
       return false;
   }
@@ -55,9 +55,9 @@ bool Set(JSContext* cx, unsigned argc, JS::Value* vp) {
   const auto& property = kProperties[FunctionSlot(args)];
   DomString value;
   if (!String(cx, args.get(0), &value)) return false;
+  auto __p0trace_1 = state.ObserveScoped(cx, args, "HTMLMetaElement", property.name, int(ApiAccess::Write));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe("HTMLMetaElement", property.name, int(ApiAccess::Write));
     if (!state.Check(state.model.SetAttribute(entry->key, property.attribute, value)))
       return false;
   }

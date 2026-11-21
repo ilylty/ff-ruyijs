@@ -122,7 +122,7 @@ bool Get(JSContext* cx, unsigned argc, JS::Value* vp) {
   Wrapper* entry = Receiver(cx, args, false);
   if (!entry) return false;
   const char* name = HandlerName(FunctionSlot(args) % kStride);
-  entry->owner->Observe(kInterfaces[FunctionSlot(args) / kStride], name, int(ApiAccess::Read));
+  auto __p0trace_0 = entry->owner->ObserveScoped(cx, args, kInterfaces[FunctionSlot(args) / kStride], name, int(ApiAccess::Read));
   NodeSnapshot node;
   if (!entry->owner->Check(entry->owner->model.Inspect(entry->key, &node))) return false;
   // body/frameset reflect their window-forwarded GlobalEventHandlers members
@@ -149,7 +149,7 @@ bool Set(JSContext* cx, unsigned argc, JS::Value* vp) {
   Wrapper* entry = Receiver(cx, args, true);
   if (!entry) return false;
   const char* name = HandlerName(FunctionSlot(args) % kStride);
-  entry->owner->Observe(kInterfaces[FunctionSlot(args) / kStride], name, int(ApiAccess::Write));
+  auto __p0trace_1 = entry->owner->ObserveScoped(cx, args, kInterfaces[FunctionSlot(args) / kStride], name, int(ApiAccess::Write));
   // [LegacyTreatNonObjectAsNull]: any object is kept, everything else is null.
   JS::RootedValue value(cx, args.get(0).isObject() ? args.get(0) : JS::NullValue());
   NodeSnapshot node;

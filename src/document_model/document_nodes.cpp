@@ -46,7 +46,7 @@ bool Create(JSContext* cx, unsigned argc, JS::Value* vp) {
   JS::RootedObject document(cx, args.thisv().isObject()
       ? js::CheckedUnwrapStatic(&args.thisv().toObject()) : nullptr);
   if (!DocumentReceiver(cx, document)) return false;
-  function.Observe("Document", names[kind], int(ApiAccess::Call));
+  auto __p0trace_0 = function.ObserveScoped(cx, args, "Document", names[kind], int(ApiAccess::Call));
   if (argc < (kind ? 1u : 2u)) return TypeError(cx, "Document factory requires more arguments");
   DomString value;
   if (!kind) {

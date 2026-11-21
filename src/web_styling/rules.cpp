@@ -1,5 +1,6 @@
 // CSS rule members use the receiver's canonical domain value and native factory.
 #include "web_styling/cssom.h"
+#include "web_styling/internal.h"
 #include "web_styling/page_descriptors.h"
 #include "web_styling/rule_exception.h"
 #include "web_styling/rule_interface_members.h"
@@ -75,6 +76,7 @@ bool RuleStyleSet(JSContext* cx,unsigned argc,JS::Value* vp) {
     ruyijs::domain::styling::CssDeclarationContext::Page);
   else row.declarations=row.kind==8?ruyijs::domain::styling::CssKeyframeDeclarations(text):
     ruyijs::domain::styling::CssDeclarationText(text);
+  if(row.kind!=6&&!detail::RefreshIndexedDeclaration(cx,view)) return false;
   args.rval().setUndefined();return true;
 }
 namespace {

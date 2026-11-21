@@ -19,7 +19,8 @@ bool Get(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto args = JS::CallArgsFromVp(argc, vp);
   JS::RootedObject page(cx, args.thisv().isNullOrUndefined() ?
       &js::GetFunctionNativeReserved(&args.callee(), 0).toObject() :
-      args.thisv().isObject() ? js::CheckedUnwrapStatic(&args.thisv().toObject()) : nullptr);
+      args.thisv().isObject()
+          ? UnwrapPageProxy(js::CheckedUnwrapStatic(&args.thisv().toObject())) : nullptr);
   JS::RootedObject instance(cx);
   if (!OriginalCrypto(cx, page, &instance)) return false;
   args.rval().setObject(*instance);

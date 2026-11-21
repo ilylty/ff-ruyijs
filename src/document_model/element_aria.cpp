@@ -58,9 +58,9 @@ bool Get(JSContext* cx, unsigned argc, JS::Value* vp) {
   State& owner = *entry->owner;
   const auto& property = kProperties[FunctionSlot(args)];
   std::optional<DomString> value;
+  auto __p0trace_0 = owner.ObserveScoped(cx, args, "Element", property.name, int(ApiAccess::Read));
   {
     JSAutoRealm realm(cx, owner.page);
-    owner.Observe("Element", property.name, int(ApiAccess::Read));
     if (!owner.Check(owner.model.GetAttributeNS(entry->key, {}, property.attribute, &value)))
       return false;
   }
@@ -78,9 +78,9 @@ bool Set(JSContext* cx, unsigned argc, JS::Value* vp) {
   Wrapper* entry = NodeReceiver(cx, args.thisv(), NodeKind::Element);
   if (!entry) return false;
   State& owner = *entry->owner;
+  auto __p0trace_1 = owner.ObserveScoped(cx, args, "Element", property.name, int(ApiAccess::Write));
   {
     JSAutoRealm realm(cx, owner.page);
-    owner.Observe("Element", property.name, int(ApiAccess::Write));
     const Status status = remove
         ? owner.model.RemoveAttributeNS(entry->key, {}, property.attribute)
         : owner.model.SetAttributeNS(entry->key, {}, property.attribute, value);

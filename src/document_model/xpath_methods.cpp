@@ -27,8 +27,7 @@ bool Call(JSContext* cx, unsigned argc, JS::Value* vp) {
     if (!DocumentReceiver(cx, receiver)) return false;
   } else if (!XPathReceiver(cx, args.thisv(),
       interface == 1 ? XPathKind::Evaluator : XPathKind::Expression, &receiver)) return false;
-  state.Observe(interface == 0 ? "Document" : interface == 1 ? "XPathEvaluator" : "XPathExpression",
-                names[method], int(ApiAccess::Call));
+  auto __p0trace_0 = state.ObserveScoped(cx, args, interface == 0 ? "Document" : interface == 1 ? "XPathEvaluator" : "XPathExpression", names[method], int(ApiAccess::Call));
   const bool compiled = interface == 2;
   const unsigned required = method == Evaluate && !compiled ? 2 : 1;
   if (argc < required) return TypeError(cx, "XPath method requires more arguments");

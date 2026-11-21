@@ -5,6 +5,7 @@
 #include "js/TypeDecls.h"
 
 namespace ruyijs { class PageHelpers; }
+namespace ruyijs::web_security { class Realm; }
 namespace ruyijs::web_trusted_types {
 struct State;
 // The Trusted Types owner of one Window or Worker realm (docs/owners/TRUSTED_TYPES.md).
@@ -19,6 +20,11 @@ class Realm final {
   // `globalPrototype` (WorkerGlobalScope.prototype) for a worker. Also installs
   // the process-wide eval hook once.
   bool Install(JS::HandleObject globalPrototype = nullptr);
+  // Binds this factory to the browsing context's Content Security owner.
+  void SetSecurity(web_security::Realm* security);
+  // A new document clears CSP-created names. The factory object and its
+  // defaultPolicy slot survive the context load, matching PRO.
+  void ResetCreatedNames();
  private:
   std::unique_ptr<State> state_;
 };

@@ -2,6 +2,7 @@
 #include "resource_network/necko_helper.h"
 #include "resource_network/necko_wire.h"
 #include "runtime/transport_partition.h"
+#include "runtime/http_trace.h"
 #include <chrono>
 #include <condition_variable>
 #include <memory>
@@ -164,6 +165,31 @@ bool Acquire(const PartitionRef& partition, const std::string& origin, ULONGLONG
 }
 bool NeckoHttp(const std::string& method, const std::string& url, const HeaderPairs& headers,
                const std::string& body, HttpResult* result, uint32_t timeoutMs) {
+  // HTTP packet tracing (runtime/http_trace.h). Synchronous requests take this
+  // path instead of AsyncHttp::Start, so they need their own pair of records.
+  // The response record reuses the request URL when the transport left finalURL
+  // empty, so both sides of a diff carry an addressable URL. The synchronous
+  // path has no HttpOptions, so Sec-Fetch-Dest supplies ruyitrace's requestKind.
+  const char* traceKind = "document";
+  for (const auto& header : headers) {
+    if (header.first != "Sec-Fetch-Dest") continue;
+    if (header.second == "script") traceKind = "script";
+    else if (header.second == "iframe" || header.second == "frame") traceKind = "subdocument";
+    else if (header.second == "empty") traceKind = "xhr";
+    break;
+  }
+  const uint64_t traceId = http_trace::BeginRequest(method, url, headers, body, traceKind);
+  struct TraceExit {
+    uint64_t id;
+    HttpResult* result;
+    std::string url;
+    ~TraceExit() {
+      if (!id || !result) return;
+      const std::string& finalURL = result->finalURL.empty() ? url : result->finalURL;
+      http_trace::EndRequest(id, result->status, result->statusText, result->headers,
+                             result->body, finalURL, result->protocol, result->error);
+    }
+  } traceExit{traceId, result, url};
   const ULONGLONG deadline = GetTickCount64() + timeoutMs;
   const std::string origin = OriginOf(url);
   const PartitionRef partition = CurrentPartition();

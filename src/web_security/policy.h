@@ -28,6 +28,12 @@ struct DirectiveEntry {
   Directive kind = Directive::Other;
   std::string name;  // lowercased
   std::vector<Source> sources;
+  // trusted-types values are policy names, not source expressions. The raw
+  // tokens stay case-sensitive; quoted keywords have special meaning.
+  std::vector<std::string> trusted_names;
+  bool trusted_allow_duplicates = false;
+  bool trusted_wildcard = false;
+  bool trusted_none = false;
 };
 struct Policy {
   std::vector<DirectiveEntry> directives;
@@ -59,5 +65,9 @@ std::vector<Violation> Check(const std::vector<Policy>& policies, const ScriptRe
 // Whether any policy has a hash source applicable to `directive`, so the
 // caller computes digests only when they can matter.
 bool NeedsDigests(const std::vector<Policy>& policies, Directive directive);
+// Trusted Types: every delivered policy permits a policy name; names already
+// created are tracked by the Trusted Types owner. Empty trusted-types is none.
+bool AllowsPolicyName(const std::vector<Policy>& policies, const std::string& name,
+                      bool created);
 }  // namespace ruyijs::web_security
 #endif

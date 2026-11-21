@@ -174,7 +174,8 @@ class PageLoad final {
   bool FireFrameElementLoad(BrowsingContext& target);
   bool Source(Owners& owners, JS::HandleObject script, const std::string& base,
               JS::MutableHandleString code, std::string* filename, bool* defer,
-              bool* load_error = nullptr, bool* module = nullptr);
+              bool* load_error = nullptr, bool* module = nullptr,
+              bool* inline_module = nullptr);
   static JSString* ScriptBody(JSContext*, const resource_network::HttpResult&);
   // Speculative preload (donor nsHtml5SpeculativeLoad): the markup's classic
   // script URLs are fetched in parallel from this Context's

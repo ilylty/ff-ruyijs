@@ -26,11 +26,15 @@ inline void EnterCall(JSContext* cx, const JS::CallArgs& args, bool constructing
 inline void LeaveCall(JSContext* cx, const JS::CallArgs& args, const CallState& state, bool ok) {
   js::standalone_trace::LeaveCall(cx, args, state, ok);
 }
+inline void ConsoleCall(JSContext* cx, const char* method, JS::CallArgs& args) {
+  js::standalone_trace::TraceConsoleCall(cx, method, args);
+}
 #else
 struct CallState {};
 inline bool Enabled() { return false; }
 inline void EnterCall(JSContext*, const JS::CallArgs&, bool, const char*, CallState*) {}
 inline void LeaveCall(JSContext*, const JS::CallArgs&, const CallState&, bool) {}
+inline void ConsoleCall(JSContext*, const char*, JS::CallArgs&) {}
 #endif
 }
 }

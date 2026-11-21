@@ -112,17 +112,20 @@ bool Getter(JSContext* cx, unsigned argc, JS::Value* vp) {
   State* state = Receiver(cx, args, kind);
   if (!state) return false;
   // Reported after receiver validation, so an invalid receiver still throws
-  // from the same place and records nothing.
-  state->Observe(ClassFor(kind, state->worker)->name, MemberName(kind, index), int(ApiAccess::Read));
+  // from the same place and records nothing. The deferred scope reads rval
+  // after Read() has written it.
+  auto trace = state->ObserveScoped(cx, args, ClassFor(kind, state->worker)->name,
+                                    MemberName(kind, index), int(ApiAccess::Read));
   ValueType type = kind == Kind::Navigator ? kNavigatorFields[index].type :
                    kind == Kind::Location ? ValueType::String : ValueType::Integer;
-  return state->Read(kind, index, type, args.rval());
+  return trace.Finish(state->Read(kind, index, type, args.rval()));
 }
 bool LocationString(JSContext* cx, unsigned argc, JS::Value* vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   State* state = Receiver(cx, args, Kind::Location);
   if (!state) return false;
-  state->Observe(ClassFor(Kind::Location, state->worker)->name, "toString", int(ApiAccess::Call));
-  return state->Read(Kind::Location, 0, ValueType::String, args.rval());
+  auto trace = state->ObserveScoped(cx, args, ClassFor(Kind::Location, state->worker)->name,
+                                    "toString", int(ApiAccess::Call));
+  return trace.Finish(state->Read(Kind::Location, 0, ValueType::String, args.rval()));
 }
 }

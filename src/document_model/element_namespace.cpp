@@ -27,7 +27,7 @@ bool CreateElementNS(JSContext* cx, unsigned argc, JS::Value* vp) {
   }
   State& owner = *document->owner;
   State& function = *FunctionState(args);
-  function.Observe("Document", "createElementNS", int(ApiAccess::Call));
+  auto __p0trace_0 = function.ObserveScoped(cx, args, "Document", "createElementNS", int(ApiAccess::Call));
   Draft draft;
   return function.Check(owner.model.CreateElementNS(document->key, namespace_uri, name, is, &draft)) &&
       owner.Commit(draft, args.rval(), nullptr, document->factory);

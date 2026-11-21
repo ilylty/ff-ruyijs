@@ -30,9 +30,9 @@ bool Get(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!entry) return false;
   auto& state = *entry->owner;
   JS::RootedValue result(cx);
+  auto __p0trace_0 = state.ObserveScoped(cx, args, "HTMLButtonElement", p.name, int(ApiAccess::Read));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe("HTMLButtonElement", p.name, int(ApiAccess::Read));
     DomString text; std::optional<DomString> attr;
     if (p.kind == Null) result.setNull();
     else if (p.kind == Form) { if (!ControlForm(*entry, &result)) return false; }
@@ -59,9 +59,9 @@ bool Set(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (p.kind == Boolean) present = JS::ToBoolean(args.get(0));
   else if (!ButtonString(cx, args.get(0), &text)) return false;
   auto& state = *entry->owner;
+  auto __p0trace_1 = state.ObserveScoped(cx, args, "HTMLButtonElement", p.name, int(ApiAccess::Write));
   {
     JSAutoRealm realm(cx, state.page);
-    state.Observe("HTMLButtonElement", p.name, int(ApiAccess::Write));
     if (!state.Check(present ? state.model.SetAttribute(entry->key, p.attr, text)
                             : state.model.RemoveAttribute(entry->key, p.attr))) return false;
   }
@@ -72,9 +72,9 @@ bool Check(JSContext* cx, unsigned argc, JS::Value* vp) {
   int slot = FunctionSlot(args);
   auto* entry = ControlReceiver(cx, args.thisv(), "HTMLButtonElement");
   if (!entry) return false;
+  auto __p0trace_0 = entry->owner->ObserveScoped(cx, args, "HTMLButtonElement", slot ? "reportValidity" : "checkValidity", int(ApiAccess::Call));
   {
     JSAutoRealm realm(cx, entry->owner->page);
-    entry->owner->Observe("HTMLButtonElement", slot ? "reportValidity" : "checkValidity", int(ApiAccess::Call));
   }
   args.rval().setBoolean(true); return true;
 }
@@ -85,9 +85,9 @@ bool CustomValidity(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!argc) return TypeError(cx, "setCustomValidity requires an argument");
   DomString text;
   if (!ButtonString(cx, args.get(0), &text)) return false;
+  auto __p0trace_1 = entry->owner->ObserveScoped(cx, args, "HTMLButtonElement", "setCustomValidity", int(ApiAccess::Call));
   {
     JSAutoRealm realm(cx, entry->owner->page);
-    entry->owner->Observe("HTMLButtonElement", "setCustomValidity", int(ApiAccess::Call));
     if (!entry->owner->Check(entry->owner->model.SetCustomValidity(entry->key, text))) return false;
   }
   args.rval().setUndefined(); return true;

@@ -3,7 +3,10 @@
 #include "web_trusted_types/realm.h"
 #include "runtime/web_kit.h"
 #include "js/RootingAPI.h"
+#include <set>
+#include <string>
 
+namespace ruyijs::web_security { class Realm; }
 namespace ruyijs::web_trusted_types {
 // Value classes: one reserved slot holding the policy's resulting string.
 enum class Kind : int32_t { HTML = 0, Script = 1, ScriptURL = 2 };
@@ -25,6 +28,9 @@ struct State {
   WebKit kit;
   WebFace html, script, url, policy, factoryFace;
   JS::PersistentRootedObject factory;
+  // Document lifetime: CSP owner and the names created through this factory.
+  web_security::Realm* security = nullptr;
+  std::set<std::string> createdPolicyNames;
   WebFace& Face(Kind kind) {
     return kind == Kind::HTML ? html : kind == Kind::Script ? script : url;
   }

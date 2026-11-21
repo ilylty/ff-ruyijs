@@ -58,7 +58,7 @@ bool Member(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!raw || JS::GetClass(raw) != &kSyncClass) return WebKit::FailBrand(cx, args, "FileSystemSyncAccessHandle");
   JS::RootedObject self(cx, raw);
   OpfsNode& node = **static_cast<std::shared_ptr<OpfsNode>*>(JS::GetReservedSlot(raw, 0).toPrivate());
-  s.Observe("FileSystemSyncAccessHandle", kNames[member], 0);
+  auto __p0trace_0 = s.ObserveScoped(cx, args, "FileSystemSyncAccessHandle", kNames[member], 0);
   const bool closed = JS::GetReservedSlot(raw, 2).toBoolean();
   if (member == kClose) {
     if (!closed) node.exclusiveLock = false;
@@ -136,7 +136,7 @@ bool OpfsCreateSyncAccessHandle(JSContext* cx, unsigned argc, JS::Value* vp) {
   State& s = Of(args);
   auto* node = OpfsNodeOf(args.thisv(), &kOpfsFileClass);
   if (!node) { WebKit::FailBrand(cx, args, "FileSystemFileHandle"); return OpfsRejectPending(cx, args.rval()); }
-  s.Observe("FileSystemFileHandle", "createSyncAccessHandle", 0);
+  auto __p0trace_1 = s.ObserveScoped(cx, args, "FileSystemFileHandle", "createSyncAccessHandle", 0);
   if (!OpfsTree::Live(**node)) return OpfsRejectStatus(s, OpfsStatus::NotFound, args.rval());
   if ((*node)->exclusiveLock)
     return OpfsReject(s, "NoModificationAllowedError", "No modification allowed", args.rval());

@@ -1,4 +1,6 @@
 #include "web_indexeddb/state.h"
+#include "runtime/cf_access_log.h"
+#include "runtime/page_helpers.h"
 #include "js/Array.h"
 #include "js/Conversions.h"
 #include "js/Object.h"
@@ -7,7 +9,7 @@
 namespace ruyijs::web_indexeddb {
 bool FactoryGet(JSContext* cx,unsigned n,JS::Value* vp) {
   auto args=JS::CallArgsFromVp(n,vp);auto& s=*static_cast<State*>(WebKit::Owner(args));
-  if (!args.thisv().isObject() || &args.thisv().toObject()!=s.kit.page)
+  if (!args.thisv().isObject() || UnwrapPageProxy(&args.thisv().toObject())!=s.kit.page)
     return WebKit::Fail(cx,"Window.indexedDB called on an incompatible receiver");
   args.rval().setObject(*s.factory);return true;
 }
@@ -28,6 +30,15 @@ bool FactoryMethod(JSContext* cx,unsigned n,JS::Value* vp) {
     version=uint64_t(std::trunc(number));
   }
   if (!Origin(s,&key.first)) return false;
+  {
+    // ruyitrace records the open/deleteDatabase request as an indexedDBOps pair.
+    // The database name and requested version are exactly what the caller passed.
+    std::string dbName(key.second.begin(), key.second.end());
+    cf_log::storage_record("start", op == 1 ? "deleteDatabase" : "open",
+                           dbName.c_str(), static_cast<int>(version), -1, 0,
+                           "", -1, "", -1, "", "", "", "", 0, "", "", 0,
+                           "", 0, 0, true, "");
+  }
   if (op==2) {
     std::vector<Info> entries;
     if (!s.store->model.List(key.first,&entries)) {JS_ReportOutOfMemory(cx);return false;}

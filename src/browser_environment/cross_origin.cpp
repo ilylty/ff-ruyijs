@@ -2,6 +2,7 @@
 // registry, the per-access same-origin check and the one view per window.
 #include "browser_environment/cross_origin_internal.h"
 #include "browser_environment/state.h"
+#include "runtime/page_helpers.h"
 #include "jsapi.h"
 #include "jsfriendapi.h"
 #include "js/CallAndConstruct.h"
@@ -73,8 +74,14 @@ void UnregisterWindow(State* state) {
   list.erase(std::remove(list.begin(), list.end(), state), list.end());
 }
 State* WindowState(JSObject* global) {
+  // A page global is exposed to script as its WindowProxy; the registry
+  // stores the bare Window. Without this unwrap SameOriginWindows would see
+  // no owner and silently report same-origin, so cross-origin WindowProxy
+  // views would never be created (MessageEvent.source then collapses to the
+  // caller's own WindowProxy instead of the sender's view).
+  JSObject* window = UnwrapPageProxy(global);
   for (State* state : Windows())
-    if (global && !state->worker && state->page.get() == global) return state;
+    if (window && !state->worker && state->page.get() == window) return state;
   return nullptr;
 }
 bool SameOriginWindows(JSContext* cx, JSObject* viewer, JSObject* target, bool* same) {

@@ -20,6 +20,10 @@ bool State::ExportWorkerGroups(JS::HandleObject output) {
     if (group && !JS_DefineProperty(cx, groups, entry.name, group, JSPROP_ENUMERATE)) return false;
   }
   for (size_t index = 0; index < kOwnerGroupCount; ++index) {
+    // The "window" group is model data, not an owner buffer: the model
+    // resolves it against the screen group, so it never travels as a port
+    // payload.
+    if (kOwnerGroups[index].kind == Kind::Window) continue;
     JS::RootedObject group(cx, owners[index].group.get());
     if (group && !JS_DefineProperty(cx, groups, kOwnerGroups[index].name, group, JSPROP_ENUMERATE)) return false;
   }
@@ -40,6 +44,7 @@ bool State::ImportWorkerGroups(JS::HandleObject profile) {
     if (group.isObject()) this->*entry.group = &group.toObject();
   }
   for (size_t index = 0; index < kOwnerGroupCount; ++index) {
+    if (kOwnerGroups[index].kind == Kind::Window) continue;
     if (!JS_GetProperty(cx, groups, kOwnerGroups[index].name, &group)) return false;
     if (group.isObject()) owners[index].group = &group.toObject();
   }

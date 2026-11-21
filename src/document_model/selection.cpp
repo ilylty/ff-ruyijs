@@ -27,7 +27,7 @@ bool Read(JSContext* cx, unsigned argc, JS::Value* vp) {
   State& state = *FunctionState(args);
   const auto field = Field(FunctionSlot(args));
   if (!Receiver(cx, args.thisv())) return false;
-  state.Observe("Selection", fields[field], int(ApiAccess::Read));
+  auto __p0trace_0 = state.ObserveScoped(cx, args, "Selection", fields[field], int(ApiAccess::Read));
   if (field == Anchor || field == Focus) args.rval().setNull();
   else if (field == Collapsed) args.rval().setBoolean(true);
   else if (field == Type) return Value(cx, DomStringView(u"None"), args.rval());
@@ -39,7 +39,7 @@ bool Call(JSContext* cx, unsigned argc, JS::Value* vp) {
   State& state = *FunctionState(args);
   const auto method = Method(FunctionSlot(args));
   if (!Receiver(cx, args.thisv())) return false;
-  state.Observe("Selection", methods[method], int(ApiAccess::Call));
+  auto __p0trace_1 = state.ObserveScoped(cx, args, "Selection", methods[method], int(ApiAccess::Call));
   if ((method == GetRange || method == Contains) && !argc)
     return TypeError(cx, "Selection method requires one argument");
   if (method == GetRange) {

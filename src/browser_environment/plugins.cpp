@@ -163,7 +163,7 @@ bool PluginGetter(JSContext* cx, unsigned argc, JS::Value* vp) {
       js::GetFunctionNativeReserved(&args.callee(), 0).toPrivate()) : nullptr)
                              : NavigatorInstance(cx, args);
   if (!state) return false;
-  state->Observe(spec->iface, spec->name, int(ApiAccess::Read));
+  [[maybe_unused]] auto trace = state->ObserveScoped(cx, args, spec->iface, spec->name, int(ApiAccess::Read));
   switch (slot) {
     case kNavigatorPlugins:
       args.rval().setObject(*state->pluginArray);
@@ -196,7 +196,7 @@ bool Method(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!spec || !Instance(cx, args, *spec, &index)) return false;
   State* state = static_cast<State*>(
       js::GetFunctionNativeReserved(&args.callee(), 0).toPrivate());
-  state->Observe(spec->iface, spec->name, int(ApiAccess::Call));
+  [[maybe_unused]] auto trace = state->ObserveScoped(cx, args, spec->iface, spec->name, int(ApiAccess::Call));
   if (slot == kPluginArrayRefresh) { args.rval().setUndefined(); return true; }
   // item/namedItem have one required argument (WebIDL); the donor binding
   // rejects a short argument list before any conversion happens.

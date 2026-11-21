@@ -1,5 +1,6 @@
 #include "runtime/secure_exposure.h"
 #include "runtime/page_load.h"
+#include "runtime/pro_standalone_trace.h"
 #include "runtime/browsing_context.h"
 #include "runtime/top_level.h"
 #include "runtime/exception_capture.h"
@@ -16,6 +17,7 @@
 #include <algorithm>
 #include <cctype>
 #include <chrono>
+#include <string>
 #ifdef _WIN32
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -75,6 +77,7 @@ bool PageLoad::Request(JS::HandleObject request, JS::MutableHandleValue result) 
     return false;
   }
   JS::RootedString markup(cx_, html.toString());
+  ruyijs::pro_trace::EmitPageEvents(url);
   ReplayScriptOrder order;
   if (!ReadReplayScriptOrder(cx_, request, &order)) return false;
   // A host load is a real top-level navigation: retain the current document's
@@ -86,6 +89,7 @@ bool PageLoad::Request(JS::HandleObject request, JS::MutableHandleValue result) 
   JS::RootedObject page(cx_, active.page);
   Owners owners = OwnersOf(active, page);
   if (active.security) active.security->Reset();  // The replaced document's policies go with it.
+  if (active.trusted) active.trusted->ResetCreatedNames();
   JSAutoRealm realm(cx_, page);
   if (!owners.environment.CommitNavigation(url, false) ||
       !ConfigureSecureExposure(active)) return false;
@@ -219,9 +223,17 @@ bool PageLoad::LoadFrame(BrowsingContext& target, const std::string& url,
   if (!owners.environment.SetFrameLocation(committed) ||
       !ConfigureSecureExposure(target) || !IsolateCrossSiteFrame(target, committed) ||
       !owners.environment.CommitAgentCluster(AgentClusterHeader(http))) return false;
-  // A fetched document does not inherit its creator's policies (D133: the
-  // response's own CSP header is not read).
-  if (target.security) target.security->Reset();
+  // A fetched document does not inherit its creator's policies. Deliver its
+  // own Content-Security-Policy response headers before parsing.
+  if (target.security) {
+    target.security->Reset();
+    for (const auto& field : http.headers) {
+      std::string key = field.first;
+      for (auto& c : key) if (c >= 'A' && c <= 'Z') c = char(c - 'A' + 'a');
+      if (key == "content-security-policy") target.security->AddPolicy(field.second);
+    }
+  }
+  if (target.trusted) target.trusted->ResetCreatedNames();
   if (http.status != 0) body = http.body;
   const auto ended = scheduling_.Inspect();
   if (!RecordFrameNavigation(target, committed, http, origin, ended.epoch + ended.now, qpc)) return false;
@@ -255,6 +267,7 @@ bool PageLoad::LoadFrameHtml(BrowsingContext& target, const std::string& html) {
     target.security->Reset();
     if (target.parent && target.parent->security) target.security->InheritFrom(*target.parent->security);
   }
+  if (target.trusted) target.trusted->ResetCreatedNames();
   JS::RootedString markup(owners.cx, JS_NewStringCopyUTF8N(owners.cx,
       JS::UTF8Chars(html.data(), html.size())));
   if (!markup) return false;
@@ -400,11 +413,21 @@ bool PageLoad::Produce(Owners& owners, JS::HandleString html, JS::MutableHandleV
     const uint64_t generation = owners.document.ScriptGeneration();
     const uint64_t ticket = ticket_;
     *executed = 0;
-    // Deferred external scripts run in document order after parsing ends.
+    // Deferred classic scripts and module scripts share parser order. Inline
+    // module scripts are queued here with their text as the source.
     JS::RootedObjectVector deferred(cx);
     JS::RootedVector<JSString*> sources(cx);
     std::vector<std::string> names;
     std::vector<bool> modules;
+    std::vector<bool> inlineModules;
+    auto inlineModulePosition = [&](JS::HandleObject target,
+        ModuleSession::ModuleCompilePosition* position) -> bool {
+      uint32_t line = 0, column = 0;
+      if (!owners.document.ScriptPosition(target, &line, &column)) return false;
+      if (line) position->line = line;
+      if (column) position->column = column;
+      return true;
+    };
     JS::RootedObjectVector replayScripts(cx);
     JS::RootedVector<JSString*> replaySources(cx);
     std::vector<std::string> replayNames;
@@ -417,7 +440,9 @@ bool PageLoad::Produce(Owners& owners, JS::HandleString html, JS::MutableHandleV
       std::string filename;
       bool defer = false;
       bool module = false;
-      if (!Source(owners, script, base, &code, &filename, &defer, nullptr, &module)) return false;
+      bool inlineModule = false;
+      if (!Source(owners, script, base, &code, &filename, &defer, nullptr, &module,
+                  &inlineModule)) return false;
       if (!code) continue;
       if (order && order->Contains(filename)) {
         JS::RootedValue async(cx);
@@ -452,6 +477,7 @@ bool PageLoad::Produce(Owners& owners, JS::HandleString html, JS::MutableHandleV
       }
       names.push_back(std::move(filename));
       modules.push_back(module);
+      inlineModules.push_back(inlineModule);
     }
     if (owners.document.ScriptGeneration() != generation || Started(ticket)) goto finished;
     // CSP reports made while parsing run before the lifecycle events.
@@ -493,6 +519,14 @@ bool PageLoad::Produce(Owners& owners, JS::HandleString html, JS::MutableHandleV
         if (!WaitForStyleSheets(context) || !Execute(owners, script, code, names[index], executed)) return false;
         continue;
       }
+      // Module scripts never expose a currentScript element.
+      JS::RootedObject noCurrentScript(cx);
+      if (!owners.document.SetCurrentScript(noCurrentScript)) return false;
+      ModuleSession::ModuleCompilePosition position;
+      if (inlineModules[index] && !inlineModulePosition(script, &position)) return false;
+      std::string recordKey = names[index];
+      if (inlineModules[index])
+        recordKey += "#ruyijs-inline-module-" + std::to_string(index);
       if (!context || !context->moduleSession) {
         if (!ReportModuleFailure(owners, script, names[index])) return false;
         continue;
@@ -509,7 +543,7 @@ bool PageLoad::Produce(Owners& owners, JS::HandleString html, JS::MutableHandleV
       bool loaded = false;
       {
         ModuleSession::Scope scope(session);
-        loaded = session.Load(names[index], sourceText, &module);
+        loaded = session.Load(recordKey, names[index], sourceText, &module, position);
         if (loaded) loaded = session.Evaluate(module, &promise);
       }
       if (!loaded) {

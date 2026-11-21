@@ -73,7 +73,7 @@ bool Part(JSContext* cx, unsigned argc, JS::Value* vp) {
     if (!entry->owner->Check(entry->owner->model.Inspect(entry->key, &snapshot))) return false;
   } else return TypeError(cx, "Element part receiver is incompatible");
   if (snapshot.kind != NodeKind::Element) return TypeError(cx, "Element part receiver is incompatible");
-  factory.Observe("Element", "part", int(ApiAccess::Read));
+  auto __p0trace_0 = factory.ObserveScoped(cx, args, "Element", "part", int(ApiAccess::Read));
   JS::RootedValue result(cx, JS::GetReservedSlot(node, 5));
   if (result.isUndefined()) {
     if (!factory.TokenListOwned(*entry, u"part", &result)) return false;

@@ -58,7 +58,7 @@ bool Getter(JSContext* cx, unsigned argc, JS::Value* vp) {
   const int32_t slot = js::GetFunctionNativeReserved(&args.callee(), 1).toInt32();
   State* state = Owner(cx, args);
   if (!state) return false;
-  state->Observe("VisualViewport", MemberName(slot), int(ApiAccess::Read));
+  auto __p0trace_0 = state->ObserveScoped(cx, args, "VisualViewport", MemberName(slot), int(ApiAccess::Read));
   double value = 0.0;
   switch (slot) {
     case kPageLeft: value = state->scrollX; break;
@@ -89,7 +89,7 @@ bool Setter(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!state) return false;
   if (slot < kOnResize || slot > kOnScrollEnd)
     return Error(cx, "VisualViewport member is read-only");
-  state->Observe("VisualViewport", MemberName(slot), int(ApiAccess::Write));
+  auto __p0trace_1 = state->ObserveScoped(cx, args, "VisualViewport", MemberName(slot), int(ApiAccess::Write));
   // WebIDL EventHandler: a non-callable value is stored as null.
   JS::RootedValue handler(cx);
   if (args.get(0).isObject() && JS::IsCallable(&args.get(0).toObject()))

@@ -12,6 +12,7 @@
 #include "runtime/page_helpers.h"
 #include "js/PropertyAndElement.h"
 #include "js/Realm.h"
+#include "js/friend/WindowProxy.h"
 namespace ruyijs::document_model {
 enum Field { Root, Head, Body, Ready, URL, Location, View, ContentType, Encoding,
               Active, Hidden, Visibility, Script, Title, Doctype };
@@ -48,9 +49,9 @@ static bool Get(JSContext* cx, unsigned argc, JS::Value* vp) {
     if (!entry) return false;
     State& owner = *entry->owner;
     DomString text;
+    auto __p0trace_0 = owner.ObserveScoped(cx, args, "Document", "title", int(ApiAccess::Read));
     {
       JSAutoRealm realm(cx, owner.page);
-      owner.Observe("Document", "title", int(ApiAccess::Read));
       if (!owner.Check(owner.model.Title(entry->key, &text))) return false;
     }
     return Value(cx, DomStringView(text), args.rval());
@@ -62,10 +63,17 @@ static bool Get(JSContext* cx, unsigned argc, JS::Value* vp) {
   bool main = Same(state.main, entry->key);
   // Observation only: reported after the receiver is validated, so an invalid
   // receiver still throws from the same place and records nothing.
-  state.Observe("Document", FieldName(field), int(ApiAccess::Read));
+  auto __p0trace_1 = state.ObserveScoped(cx, args, "Document", FieldName(field), int(ApiAccess::Read));
   if (field == Location || field == View) {
-    args.rval().setObjectOrNull(main ? field == Location ? state.environment.location() : state.page.get() : nullptr);
-    return true;
+    // WPT Document-defaultView.html: document.defaultView === window.
+    // `window` is the browsing context's WindowProxy, not the bare Window
+    // held by the document model. ToWindowProxyIfWindow is a no-op on builds
+    // without an associated WindowProxy.
+    JSObject* view = main && field == View
+        ? js::ToWindowProxyIfWindow(state.page.get()) : nullptr;
+    args.rval().setObjectOrNull(main ? field == Location
+        ? state.environment.location() : view : nullptr);
+    return JS_WrapValue(cx, args.rval());
   }
   DocumentSnapshot value;
   if (!state.Check(state.model.InspectDocument(entry->key, &value))) return false;
@@ -96,7 +104,7 @@ static bool Set(JSContext* cx, unsigned argc, JS::Value* vp) {
   Wrapper* entry = NodeReceiver(cx, args.thisv(), NodeKind::Document);
   if (!entry) return false;
   State& state = *entry->owner;
-  state.Observe("Document", "title", int(ApiAccess::Write));
+  auto __p0trace_2 = state.ObserveScoped(cx, args, "Document", "title", int(ApiAccess::Write));
   DomString value;
   if (!String(cx, args.get(0), &value)) return false;
   {
@@ -116,7 +124,7 @@ static bool SetLocation(JSContext* cx, unsigned argc, JS::Value* vp) {
   NodeKind kind = NodeKind::Document;
   Wrapper* entry = Receiver(state, args, &kind);
   if (!entry) return false;
-  state.Observe("Document", "location", int(ApiAccess::Write));
+  auto __p0trace_3 = state.ObserveScoped(cx, args, "Document", "location", int(ApiAccess::Write));
   // Only the main document has a browsing context and therefore a Location.
   JSObject* location =
       Same(state.main, entry->key) ? state.environment.location() : nullptr;
@@ -135,6 +143,12 @@ static bool Call(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!entry) return false;
   auto op = Method(FunctionSlot(args));
   if (op == MakeRange) return CreateRange(state, entry->key, args.rval());
+  { static const char* const cf_n[] = {"createElement", "createTextNode", "createComment",
+      "getElementById", "createDocumentFragment", "createAttribute", "importNode", "adoptNode",
+      "createTreeWalker", "createNodeIterator", "createRange"};
+    const unsigned cf_i = static_cast<unsigned>(op);
+    cf_log::observe("Document", cf_n[cf_i < 11 ? cf_i : 0], 2); }
+
   if (op == TreeWalker || op == NodeIterator) {
     if (!argc) return TypeError(cx, "Document method has too few arguments");
     return op == TreeWalker

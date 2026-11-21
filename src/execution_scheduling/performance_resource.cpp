@@ -1,3 +1,4 @@
+#include "runtime/cf_access_log.h"
 #include "execution_scheduling/performance.h"
 #include "execution_scheduling/resource_timing.h"
 #include "execution_scheduling/navigation_timing.h"
@@ -87,6 +88,8 @@ bool PerfNavigationField(JSContext* cx,JS::HandleObject entry,unsigned field,JS:
 }
 bool PerfResourceField(JSContext* cx,JS::HandleObject entry,unsigned field,JS::MutableHandleValue out){
  JSAutoRealm realm(cx,entry);
+ cf_log::observe("PerformanceResourceTiming", kPerfSchema[Resource].fields[field], 0);
+
  if(JS::GetReservedSlot(entry,EKind).toInt32()==NavigationEntry){
   const NavigationTiming* r=NavigationRecord(cx,entry);
   if(!r){out.setDouble(0);return true;}

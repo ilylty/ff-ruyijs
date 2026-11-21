@@ -1,3 +1,4 @@
+#include "runtime/cf_access_log.h"
 #include "document_model/state.h"
 #include "runtime/weak_object.h"
 #include "document_model/sanitizer.h"
@@ -130,7 +131,7 @@ State::~State() {
 bool Same(NodeKey a, NodeKey b) { return a.document == b.document && a.node == b.node; }
 Wrapper* State::Find(JSObject* object) const {
   if (!object) return nullptr;
-  object = js::CheckedUnwrapStatic(object);
+  object = js::CheckedUnwrapStatic(UnwrapPageProxy(object));
   for (auto* value = wrappers.get(); value; value = value->next.get())
     if (!value->dead && value->object == object) return value;
   return nullptr;
@@ -175,12 +176,17 @@ Realm::Realm(JSContext* cx, JS::HandleObject page, interaction::Realm& events,
 Realm::~Realm() = default;
 static bool DocumentGetter(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto args = JS::CallArgsFromVp(argc, vp);
+  cf_log::observe_full("Window", "document", 0);
   State* state = FunctionState(args);
-  if (!args.thisv().isObject() || &args.thisv().toObject() != state->page)
+  // Strict identity is correct: Firefox rejects `scope.__proto__ = window`
+  // followed by `scope.document` with "get document called on an object that
+  // does not implement interface Window". Accepting a prototype-chain match
+  // here would make ruyijs run code the real browser refuses.
+  if (!args.thisv().isObject() ||
+      UnwrapPageProxy(&args.thisv().toObject()) != state->page.get())
     return TypeError(cx, "Window receiver is incompatible");
   return state->Wrap(state->main, args.rval());
-}
-bool Realm::Install() {
+}bool Realm::Install() {
   State& state = *state_;
   JSAutoRealm realm(state.cx, state.page);
   // 256 documents, 100000 live nodes and 16 MiB of text per page realm. The
@@ -221,6 +227,7 @@ bool Realm::Install() {
   if (!state.Commit(draft, &value)) return false;
   state.main = draft.root;
   JS::RootedObject getter(state.cx, state.Function(DocumentGetter, "get document", 0, 0));
+  if (getter) RecordMemberBinding(getter, "Window", "document", "get");
   JS::RootedObject setter(state.cx);
   return getter && JS_DefineProperty(state.cx, state.page, "document", getter, setter,
                                     JSPROP_ENUMERATE | JSPROP_PERMANENT) &&

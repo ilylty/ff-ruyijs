@@ -13,7 +13,7 @@ bool Transfer(JSContext* cx, unsigned argc, JS::Value* vp) {
   int op = WebKit::Slot(args);
   JS::RootedObject self(cx);
   if (op == 2) {
-    if (!WebKit::Check(cx, args.thisv(), &kOffscreenClass, &self, "Illegal invocation")) return false;
+    if (!WebKit::CheckBrand(cx, args, &kOffscreenClass, &self, "OffscreenCanvas")) return false;
     JS::RootedObject bitmap(cx);
     if (!NewCanvasBitmap(s, self, &bitmap)) return false;
     CanvasBinding* b = s.Find(self);

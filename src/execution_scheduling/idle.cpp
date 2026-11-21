@@ -1,4 +1,5 @@
 #include "execution_scheduling/idle.h"
+#include "runtime/page_helpers.h"
 #include "jsfriendapi.h"
 #include "js/CallAndConstruct.h"
 #include "js/Conversions.h"
@@ -9,7 +10,7 @@ namespace {
 bool Factory(JSContext* cx,const JS::CallArgs& args,JS::MutableHandleObject factory){
  factory.set(&js::GetFunctionNativeReserved(&args.callee(),0).toObject());
  if(args.thisv().isNullOrUndefined())return true;
- JS::RootedObject receiver(cx,args.thisv().isObject()?js::CheckedUnwrapStatic(&args.thisv().toObject()):nullptr);
+ JS::RootedObject receiver(cx,args.thisv().isObject()?UnwrapPageProxy(&args.thisv().toObject()):nullptr);
  if(receiver){auto& s=IdleState(factory);
   for(JSObject* candidate:s.idleFactories){
    if(&JS::GetReservedSlot(candidate,IPage).toObject()==receiver){factory.set(candidate);return true;}

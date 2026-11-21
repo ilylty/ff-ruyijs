@@ -1,5 +1,6 @@
 #include "execution_scheduling/scheduler.h"
 #include "execution_scheduling/performance.h"
+#include "runtime/page_helpers.h"
 #include "jsfriendapi.h"
 #include "js/Exception.h"
 #include "js/Promise.h"
@@ -9,7 +10,7 @@ bool SchedulerGlobal(JSContext* cx,unsigned argc,JS::Value* vp){
  auto args=JS::CallArgsFromVp(argc,vp);
  JS::RootedObject original(cx,&js::GetFunctionNativeReserved(&args.callee(),0).toObject());
  JS::RootedObject receiver(cx,args.thisv().isNullOrUndefined()?&JS::GetReservedSlot(original,TPage).toObject():
-  args.thisv().isObject()?js::CheckedUnwrapStatic(&args.thisv().toObject()):nullptr);
+  args.thisv().isObject()?UnwrapPageProxy(js::CheckedUnwrapStatic(&args.thisv().toObject())):nullptr);
  auto& s=TaskState(original);JS::RootedObject f(cx);
  for(JSObject* raw:s.schedulerFactories){if(&JS::GetReservedSlot(raw,TPage).toObject()==receiver){f=raw;break;}}
  if(!f)return Error(cx,"Illegal Window receiver");

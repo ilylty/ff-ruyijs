@@ -9,6 +9,7 @@
 #include "interaction/internal.h"
 #include "interaction/event_legacy_conversion.h"
 #include "runtime/native_constructor_trace.h"
+#include "runtime/page_helpers.h"
 #include "js/Conversions.h"
 #include "js/Object.h"
 #include "js/PropertyAndElement.h"
@@ -26,7 +27,8 @@ namespace {
 std::string Name(Iface iface) { return InterfaceName(iface); }
 bool Fail(JSContext* cx, const std::string& message) { return Error(cx, "TypeError", message.c_str()); }
 bool IsWindow(JS::HandleValue value) {
-  JSObject* object = value.isObject() ? js::CheckedUnwrapStatic(&value.toObject()) : nullptr;
+  JSObject* object = value.isObject()
+      ? UnwrapPageProxy(js::CheckedUnwrapStatic(&value.toObject())) : nullptr;
   return object && JS_IsGlobalObject(object);
 }
 bool Brand(State& state, int brand, JS::HandleValue value) {

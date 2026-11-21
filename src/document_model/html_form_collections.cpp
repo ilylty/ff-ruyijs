@@ -31,9 +31,9 @@ bool Named(JSContext* cx, unsigned argc, JS::Value* vp) {
     JS_ClearPendingException(cx); args.rval().setNull(); return true;
   }
   JS::RootedValue result(cx);
+  auto __p0trace_0 = state->ObserveScoped(cx, args, "HTMLFormControlsCollection", "namedItem", int(ApiAccess::Call));
   {
     JSAutoRealm realm(cx, state->page);
-    state->Observe("HTMLFormControlsCollection", "namedItem", int(ApiAccess::Call));
     if (!FormNamed(*state, record->scope, name, &result)) return false;
   }
   if (!JS_WrapValue(cx, &result)) return false;
@@ -45,9 +45,9 @@ bool RadioGet(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto* record = Receiver(cx, args, CollectionFilter::RadioGroup, &state);
   if (!record) return false;
   DomString value;
+  auto __p0trace_1 = state->ObserveScoped(cx, args, "RadioNodeList", "value", int(ApiAccess::Read));
   {
     JSAutoRealm realm(cx, state->page);
-    state->Observe("RadioNodeList", "value", int(ApiAccess::Read));
     if (!state->Check(state->model.RadioValue(record->scope, record->argument, &value))) return false;
   }
   return Value(cx, DomStringView(value), args.rval());
@@ -59,9 +59,9 @@ bool RadioSet(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!record) return false;
   DomString value;
   if (!String(cx, args.get(0), &value)) return false;
+  auto __p0trace_2 = state->ObserveScoped(cx, args, "RadioNodeList", "value", int(ApiAccess::Write));
   {
     JSAutoRealm realm(cx, state->page);
-    state->Observe("RadioNodeList", "value", int(ApiAccess::Write));
     if (!state->Check(state->model.SetRadioValue(record->scope, record->argument, value))) return false;
   }
   args.rval().setUndefined(); return true;

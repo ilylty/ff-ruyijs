@@ -34,4 +34,8 @@ bool Realm::Install(JS::HandleObject globalPrototype) {
   return InstallEvalHook(state.cx) && InstallValues(state) && InstallPolicy(state) &&
          InstallFactory(state, target, globalPrototype ? "WorkerGlobalScope" : "Window");
 }
+void Realm::SetSecurity(web_security::Realm* security) {
+  state_->security = security;
+}
+void Realm::ResetCreatedNames() { state_->createdPolicyNames.clear(); }
 }

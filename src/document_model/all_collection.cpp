@@ -70,12 +70,12 @@ bool All(JSContext* cx, unsigned argc, JS::Value* vp) {
   if (!node) return false;
   State& owner = *node->owner;
   JS::RootedValue value(cx);
+  auto __p0trace_0 = owner.ObserveScoped(cx, args, "Document","all",int(ApiAccess::Read));
   {
     JSAutoRealm realm(cx,owner.page);
     NodeSnapshot snapshot;
     if (!owner.Check(owner.model.Inspect(node->key,&snapshot))) return false;
     if (snapshot.kind != NodeKind::Document) return TypeError(cx,"Document.all receiver is incompatible");
-    owner.Observe("Document","all",int(ApiAccess::Read));
     Collection* entry = owner.FindCollection(CollectionKind::HTMLCollection,node->key,CollectionFilter::All,u"");
     if (!entry) entry = owner.NewCollection(CollectionKind::HTMLCollection,node->key,CollectionFilter::All,u"",true);
     if (!entry || !owner.SyncCollections() || !FreshCollection(owner, *entry->record)) return false;

@@ -96,13 +96,19 @@ void Realm::AddPolicy(const std::u16string& text) {
   State& state = *state_;
   JS::RootedString value(state.cx, JS_NewUCStringCopyN(state.cx, text.data(), text.size()));
   if (!value) { JS_ClearPendingException(state.cx); return; }
+  AddPolicy(Utf8(state.cx, value));
+}
+void Realm::AddPolicy(const std::string& text) {
   // Leading/trailing HTML whitespace only; an empty value adds nothing
   // (donor CSP_ApplyMetaCSPToDoc). Meta CSP is never report-only.
-  ParsePolicies(Utf8(state.cx, value), state.DocumentUrl(), &state.policies);
+  ParsePolicies(text, state_->DocumentUrl(), &state_->policies);
 }
 void Realm::InheritFrom(const Realm& creator) { state_->policies = creator.state_->policies; }
 void Realm::Reset() { state_->policies.clear(); ++state_->generation; }
 bool Realm::Enforcing() const { return !state_->policies.empty(); }
+bool Realm::AllowsPolicyName(const std::string& name, bool created) const {
+  return web_security::AllowsPolicyName(state_->policies, name, created);
+}
 void Realm::BeginParse() { state_->holding = true; }
 bool Realm::EndParse() { return FlushHeldReports(*state_); }
 

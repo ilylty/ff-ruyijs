@@ -64,7 +64,7 @@ void State::Invoke(const TaskSnapshot& task) {
           callback->arguments.length(), callback->arguments.begin());
       ok = JS::Call(cx, receiver, handler, arguments, &result);
     }
-    if (!ok) { CaptureOperationFailure(cx); JS_ClearPendingException(cx); }
+    if (!ok) { CaptureCallbackFailure(cx); }
     CheckpointJobs();
   }
   callback->running = false;

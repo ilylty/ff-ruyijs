@@ -2,6 +2,7 @@
 #include <cstring>
 #include <string>
 #include "runtime/web_kit.h"
+#include "runtime/page_helpers.h"
 #include "js/Conversions.h"
 #include "js/ErrorReport.h"
 #include "js/Exception.h"
@@ -72,7 +73,9 @@ Event* Receiver(JSContext* cx, const JS::CallArgs& args, Iface required, bool cr
 Target* TargetReceiver(JSContext* cx, const JS::CallArgs& args,
                        JS::MutableHandleObject object, State** owner) {
   if (args.thisv().isObject()) {
-    object.set(&args.thisv().toObject());
+    // The page global is a Proxy; WebIDL EventTarget brand checks compare
+    // against the registered bare global.
+    object.set(UnwrapPageProxy(&args.thisv().toObject()));
   } else if (args.thisv().isNullOrUndefined()) {
     // Donor MaybeGlobalThisPolicy::ExtractThisObject: a bare call or an
     // explicit null/undefined this resolves to the callee realm's global
@@ -87,7 +90,9 @@ Target* TargetReceiver(JSContext* cx, const JS::CallArgs& args,
   State* state = object ? Owner(cx, object, false) : nullptr;
   Target* target = state ? state->target(object) : nullptr;
   if (!target) {
-    Error(cx, "TypeError", "EventTarget receiver is incompatible");
+    std::string text;
+    if (!WebKit::BrandText(cx, args, "EventTarget", &text)) return nullptr;
+    Error(cx, "TypeError", text.c_str());
     return nullptr;
   }
   *owner = state;

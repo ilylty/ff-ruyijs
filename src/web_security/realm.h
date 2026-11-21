@@ -32,13 +32,19 @@ class Realm final {
   // bound by the shared coordinator to the Context's one task queue.
   using TaskPort = bool (*)(void* context, JS::HandleObject task);
   void SetTaskPort(TaskPort port, void* context);
-  // Appends the policies of one <meta http-equiv="Content-Security-Policy">.
+  // Appends the policies of one <meta http-equiv="Content-Security-Policy">
+  // or a Content-Security-Policy response header.
   void AddPolicy(const std::u16string& text);
+  void AddPolicy(const std::string& text);
   // A srcdoc / initial about:blank document inherits its creator's policies.
   void InheritFrom(const Realm& creator);
   // A document replaced in this realm (host `load`) starts without policies.
   void Reset();
   bool Enforcing() const;
+  // Trusted Types: true when every delivered trusted-types directive permits
+  // this policy name. `created` rejects a repeated name unless its directive
+  // carries the quoted 'allow-duplicates' keyword.
+  bool AllowsPolicyName(const std::string& name, bool created) const;
   // The page-load coordinator brackets parsing: reports made meanwhile are
   // delivered at EndParse, before the document's lifecycle events.
   void BeginParse();

@@ -144,12 +144,44 @@ void ParseOne(std::string_view text, const UrlValue& self, std::vector<Policy>* 
     DirectiveEntry entry;
     entry.name = Lower(tokens[0]);
     if (!KnownDirective(entry.name)) continue;
+    if (entry.name == "trusted-types") {
+      bool none = false, expression = false;
+      const auto valid = [](const std::string& token) {
+        if (token.empty()) return false;
+        for (unsigned char c : token)
+          if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                (c >= '0' && c <= '9') || c == '-' || c == '#' || c == '=' ||
+                c == '_' || c == '/' || c == '@' || c == '.' || c == '%')) return false;
+        return true;
+      };
+      for (size_t i = 1; i < tokens.size(); ++i) {
+        const std::string& token = tokens[i];
+        if (token == "'allow-duplicates'") {
+          entry.trusted_allow_duplicates = true;
+          expression = true;
+        } else if (token == "'none'") {
+          none = true;
+        } else if (token == "*") {
+          entry.trusted_wildcard = true;
+          expression = true;
+        } else if (!token.empty() && token.front() != '\'' && valid(token)) {
+          entry.trusted_names.push_back(token);
+          expression = true;
+        } else {
+          // An invalid tt-expression is retained but permits no policy name.
+          expression = true;
+        }
+      }
+      // No tt-expression is equivalent to 'none'; 'none' is ignored when any
+      // other expression is present (donor handleTrustedTypesDirective).
+      entry.trusted_none = tokens.size() == 1 || (none && !expression);
+    }
     bool duplicate = false;
     for (const auto& existing : policy.directives) duplicate |= existing.name == entry.name;
     if (duplicate) continue;
     entry.kind = Kind(entry.name);
     bool keywords_only_sample = true;
-    for (size_t i = 1; i < tokens.size(); ++i) {
+    for (size_t i = 1; i < tokens.size() && entry.name != "trusted-types"; ++i) {
       Source source;
       const std::string lower = Lower(tokens[i]);
       if (lower == "'self'") {
@@ -168,7 +200,8 @@ void ParseOne(std::string_view text, const UrlValue& self, std::vector<Policy>* 
         keywords_only_sample = false;
       entry.sources.push_back(std::move(source));
     }
-    if (entry.sources.empty() || keywords_only_sample) {  // An empty source list is 'none'.
+    if (entry.name != "trusted-types" &&
+        (entry.sources.empty() || keywords_only_sample)) {  // An empty source list is 'none'.
       Source none;
       none.kind = Source::Kind::Keyword;
       none.text = "'none'";
@@ -180,7 +213,14 @@ void ParseOne(std::string_view text, const UrlValue& self, std::vector<Policy>* 
   for (const auto& directive : policy.directives) {
     if (!policy.serialized.empty()) policy.serialized += "; ";
     policy.serialized += directive.name;
-    for (const auto& source : directive.sources) policy.serialized += " " + source.text;
+    if (directive.name == "trusted-types") {
+      if (directive.trusted_none) policy.serialized += " 'none'";
+      for (const auto& name : directive.trusted_names) policy.serialized += " " + name;
+      if (directive.trusted_wildcard) policy.serialized += " *";
+      if (directive.trusted_allow_duplicates) policy.serialized += " 'allow-duplicates'";
+    } else {
+      for (const auto& source : directive.sources) policy.serialized += " " + source.text;
+    }
   }
   out->push_back(std::move(policy));
 }

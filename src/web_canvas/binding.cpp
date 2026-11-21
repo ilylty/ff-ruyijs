@@ -28,7 +28,7 @@ const Default kDefaults[] = {
     {kGlobalCompositeOperation, 0, "source-over", 0},
     {kImageSmoothingEnabled, 2, nullptr, 1},
     {kShadowBlur, 1, nullptr, 0.0},
-    {kShadowColor, 0, "transparent", 0},
+    {kShadowColor, 0, "rgba(0, 0, 0, 0)", 0},
     {kShadowOffsetX, 1, nullptr, 0.0},
     {kShadowOffsetY, 1, nullptr, 0.0},
     {kFilter, 0, "none", 0},

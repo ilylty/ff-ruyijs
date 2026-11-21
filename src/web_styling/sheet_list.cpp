@@ -1,4 +1,5 @@
 // Document.styleSheets installation remains the original Styling owner path.
+#include "runtime/cf_access_log.h"
 #include "web_styling/cssom.h"
 #include "web_styling/adopted.h"
 #include "web_styling/realm.h"
@@ -9,6 +10,8 @@ namespace {
 bool SheetsGet(JSContext* cx, unsigned argc, JS::Value* vp) {
   auto args = JS::CallArgsFromVp(argc, vp);
   State& state = *detail::Self(args);
+  cf_log::observe(WebKit::Slot(args) == 1 ? "ShadowRoot" : "Document", "styleSheets", 0);
+
   if (!state.documentResolve) return WebKit::Fail(cx, "Document CSS receiver port is not installed");
   return state.documentResolve(state.documentContext, args.thisv(), args.rval(), WebKit::Slot(args) == 1);
 }

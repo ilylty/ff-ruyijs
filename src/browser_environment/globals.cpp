@@ -5,6 +5,7 @@
 #include "browser_environment/window_named.h"
 #include "runtime/page_helpers.h"
 #include "jsfriendapi.h"
+#include "js/friend/WindowProxy.h"
 #include "js/PropertyAndElement.h"
 #include "js/Object.h"
 #include "js/Symbol.h"
@@ -30,7 +31,8 @@ static State* GlobalReceiver(JSContext* cx, const JS::CallArgs& args) {
   // (undefined) and an explicit null to the callee realm's global
   // (dom/bindings/BindingUtils.cpp:2863-2874). Any other receiver is rejected.
   bool is_page = args.thisv().isNullOrUndefined() ||
-                 (args.thisv().isObject() && &args.thisv().toObject() == state->page);
+                 (args.thisv().isObject() &&
+                  UnwrapPageProxy(&args.thisv().toObject()) == state->page);
   if (!is_page) {
     WebKit::FailBrand(cx, args, "Window");
     return nullptr;
@@ -42,32 +44,32 @@ static bool GlobalGet(JSContext* cx, unsigned argc, JS::Value* vp) {
   State* state = GlobalReceiver(cx, args);
   if (!state) return false;
   int32_t slot = js::GetFunctionNativeReserved(&args.callee(), 1).toInt32();
-  state->Observe("Window", GlobalName(slot), int(ApiAccess::Read));
+  auto trace = state->ObserveScoped(cx, args, "Window", GlobalName(slot), int(ApiAccess::Read));
   if (slot == 8) {
     // frameElement is null unless the embedder's document is same origin.
     bool same = true;
     JS::RootedObject parent(cx, state->parentWindow);
     if (state->frameElement && !SameOriginWindows(cx, state->page, parent, &same)) return false;
     args.rval().setObjectOrNull(same ? state->frameElement.get() : nullptr);
-    return JS_WrapValue(cx, args.rval());
+    return trace.Finish(JS_WrapValue(cx, args.rval()));
   }
   if (slot == 2 || slot == 3) {  // top / parent, seen from this window
     JS::RootedObject window(cx, slot == 2 ? state->topWindow : state->parentWindow);
-    return WindowView(cx, state->page, window, args.rval());
+    return trace.Finish(WindowView(cx, state->page, window, args.rval()));
   }
   args.rval().setObject(slot < 4 ? *state->page : *state->instances.get()[slot - 4]);
-  return JS_WrapValue(cx, args.rval());
+  return trace.Finish(JS_WrapValue(cx, args.rval()));
 }
 static bool Replace(JSContext* cx, unsigned argc, JS::Value* vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   State* state = GlobalReceiver(cx, args);
   if (!state) return false;
   int32_t slot = js::GetFunctionNativeReserved(&args.callee(), 1).toInt32();
-  state->Observe("Window", GlobalName(slot), int(ApiAccess::Write));
+  auto trace = state->ObserveScoped(cx, args, "Window", GlobalName(slot), int(ApiAccess::Write));
   JS::RootedValue value(cx, argc ? args[0] : JS::UndefinedValue());
   if (!JS_DefineProperty(cx, state->page, kNames[slot], value, JSPROP_ENUMERATE)) return false;
   args.rval().setUndefined();
-  return true;
+  return trace.Finish(true);
 }
 // Window.location is [PutForwards=href], not a replaceable Window property.
 // Forward to this realm's one Location setter, including its receiver checks
@@ -76,11 +78,11 @@ static bool LocationSet(JSContext* cx, unsigned argc, JS::Value* vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   State* state = GlobalReceiver(cx, args);
   if (!state) return false;
-  state->Observe("Window", "location", int(ApiAccess::Write));
+  auto trace = state->ObserveScoped(cx, args, "Window", "location", int(ApiAccess::Write));
   JS::RootedObject location(cx, state->instances.get()[int32_t(Kind::Location)]);
   JS::RootedValue value(cx, args.get(0));
   args.rval().setUndefined();
-  return JS_SetProperty(cx, location, "href", value);
+  return trace.Finish(JS_SetProperty(cx, location, "href", value));
 }
 // window.opener: the donor's GetOpener returns null when the browsing context
 // has no opener, and its SetOpener defines the value on the window object
@@ -90,19 +92,19 @@ static bool OpenerGet(JSContext* cx, unsigned argc, JS::Value* vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   State* state = GlobalReceiver(cx, args);
   if (!state) return false;
-  state->Observe("Window", "opener", int(ApiAccess::Read));
+  auto trace = state->ObserveScoped(cx, args, "Window", "opener", int(ApiAccess::Read));
   args.rval().setNull();
-  return true;
+  return trace.Finish(true);
 }
 static bool OpenerSet(JSContext* cx, unsigned argc, JS::Value* vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   State* state = GlobalReceiver(cx, args);
   if (!state) return false;
-  state->Observe("Window", "opener", int(ApiAccess::Write));
+  auto trace = state->ObserveScoped(cx, args, "Window", "opener", int(ApiAccess::Write));
   JS::RootedValue value(cx, argc ? args[0] : JS::UndefinedValue());
   args.rval().setUndefined();
-  if (value.isNull()) return true;
-  return JS_DefineProperty(cx, state->page, "opener", value, JSPROP_ENUMERATE);
+  if (value.isNull()) return trace.Finish(true);
+  return trace.Finish(JS_DefineProperty(cx, state->page, "opener", value, JSPROP_ENUMERATE));
 }
 bool State::Globals() {
   for (int32_t index = 0; index < 8; ++index) {
@@ -143,12 +145,17 @@ bool State::Window(JS::HandleObject eventPrototype) {
   bool immutable = false;
   if (!JS_GetProperty(cx, eventPrototype, "constructor", &parent) || !parent.isObject()) return false;
   JS::RootedObject parentConstructor(cx, &parent.toObject());
+  // The page global is exposed to script through a real Proxy. Its own
+  // [[Prototype]] must mirror the Window's so Object.getPrototypeOf(window)
+  // walks window -> Window.prototype -> WindowProperties -> EventTarget.prototype.
+  JS::RootedObject windowProxy(cx, js::ToWindowProxyIfWindow(page));
   return JS_SetPrototype(cx, constructor, parentConstructor) &&
          JS_DefineProperty(cx, constructor, "prototype", prototype, JSPROP_READONLY | JSPROP_PERMANENT) &&
          JS_DefineProperty(cx, prototype, "constructor", constructor, 0) &&
          Tag(cx, prototype, "Window") &&
          JS_DefineProperty(cx, page, "Window", constructor, 0) &&
          JS_SetPrototype(cx, page, prototype) && JS_SetImmutablePrototype(cx, page, &immutable) &&
+         (windowProxy == page || JS_SetPrototype(cx, windowProxy, prototype)) &&
          immutable && helpers->Interface("Window", prototype) &&
          helpers->Constructor("Window", constructor);
 }

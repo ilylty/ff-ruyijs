@@ -124,11 +124,15 @@ def generate(donor, root, directory):
     source = replace_once(source, "/* JS shell. */",
                           '/* JS shell. */\n#include "runtime/runtime.h"\n'
                           '#include "runtime/exception_capture.h"\n'
-                          '#include "runtime/arguments.h"')
-    source = replace_once(source, "  sArgc = argc;",
+                          '#include "runtime/arguments.h"\n'
+                          '#include "runtime/pro_standalone_trace.h"')
+    source = replace_once(source, "  sArgc = argc;\n  sArgv = argv;",
                           "  ruyijs::Arguments productArguments;\n"
                           "  if (!productArguments.Prepare(&argc, &argv)) return 1;\n"
-                          "  sArgc = argc;")
+                          "  if (!ruyijs::pro_trace::Configure(argc, argv)) return 1;\n"
+                          "  sArgc = argc;\n"
+                          "  sArgv = argv;\n"
+                          "  ruyijs::ProStandaloneTraceGuard proStandaloneTraceGuard;")
     source = replace_once(
         source, "!ProcessArgs(cx, op)",
         '!(op->getStringOption("ruyijs-worker") ? '
@@ -161,7 +165,25 @@ def generate(donor, root, directory):
                '!op.addIntOption(\'\\0\', "ruyijs-max-helpers", "COUNT", '
                '"Necko helper budget across a host\'s sessions (0: none)", 0) ||\n      '
                '!op.addStringOption(\'\\0\', "ruyijs-worker-kind", "KIND", '
-               '"Worker global kind: dedicated (default), service or shared") ||\n      ')
+               '"Worker global kind: dedicated (default), service or shared") ||\n      '
+               '!op.addStringOption(\'\\0\', "trace", "CATEGORIES", '
+               '"Enable standalone kernel trace categories") ||\n      '
+               '!op.addStringOption(\'\\0\', "trace-file", "PATH", '
+               '"Write standalone kernel JSONL to PATH") ||\n      '
+               '!op.addStringOption(\'\\0\', "trace-target", "SUB[,SUB...]", '
+               '"Only record scripts whose URL contains a substring") ||\n      '
+               '!op.addStringOption(\'\\0\', "trace-run-id", "ID", '
+               '"Set the standalone trace run id") ||\n      '
+               '!op.addStringOption(\'\\0\', "trace-limit", "COUNT", '
+               '"Stop standalone trace after COUNT events") ||\n      '
+               '!op.addStringOption(\'\\0\', "trace-max-value", "LENGTH", '
+               '"Maximum full string length before head/tail summary") ||\n      '
+               '!op.addStringOption(\'\\0\', "trace-max-items", "COUNT", '
+               '"Maximum number of recorded call arguments") ||\n      '
+               '!op.addBoolOption(\'\\0\', "trace-time", '
+               '"Add epoch millisecond timestamps to standalone trace") ||\n      '
+               '!op.addStringOption(\'\\0\', "ruyijs-env", "SUB[,SUB...]", '
+               '"Match the emulated host script for ruyijs registry records") ||\n      ')
     source = replace_once(source, hook, options + hook)
     source = replace_once(
         source, "js::shell::AutoReportException::~AutoReportException() {",
