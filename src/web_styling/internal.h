@@ -4,6 +4,7 @@
 #ifndef RUYIJS_WEB_STYLING_INTERNAL_H
 #define RUYIJS_WEB_STYLING_INTERNAL_H
 #include <string>
+#include <vector>
 #include "js/Conversions.h"
 #include "js/Object.h"
 #include "js/PropertyAndElement.h"
@@ -72,6 +73,8 @@ std::string Serialize(const std::string& name, const std::string& value, bool im
 
 bool ReadViewBlock(JSContext*, JS::HandleObject, std::string*);
 bool RefreshIndexedDeclaration(JSContext* cx, JS::HandleObject view);
+bool RefreshIndexedDeclarationNames(JSContext* cx, JS::HandleObject view,
+                                     const std::vector<std::string>& names);
 bool WriteRuleBlock(State&, JS::HandleObject, JS::HandleValue);
 bool SetRuleProperty(State&, JS::HandleObject, const std::string&, JS::HandleValue,
                       JS::HandleValue priority, bool remove, JS::MutableHandleValue);

@@ -1,0 +1,28 @@
+<!doctype html><html><head>
+<meta charset="utf-8">
+</head><body>
+<script>
+(() => {
+  const R = {name: '026_frame_enumeration', done: false, cases: []};
+  window.__FEATURE_TEST__ = R;
+  const add = (name, fn) => {
+    try {
+      const detail = fn();
+      R.cases.push({name, pass: detail === true, detail: detail === true ? "" : detail});
+    } catch (e) {
+      R.cases.push({name, pass: false, detail: String(e && e.message || e)});
+    }
+  };
+  document.body.innerHTML = "<iframe></iframe>";
+add("undefined is own key from runtime head", () => Object.prototype.hasOwnProperty.call(window, "undefined"));
+add("boolean globals are own keys", () => ["Boolean", "JSON", "Date", "Math", "RegExp"]
+  .every(name => Object.prototype.hasOwnProperty.call(window, name)));
+add("frames is an own key", () => Object.prototype.hasOwnProperty.call(window, "frames"));
+add("window exposes numeric frame indexes", () => "0" in window && window.frames.length === 1);
+add("numeric frame index resolves to a WindowProxy", () => window[0] === window.frames[0]);
+  R.done = true;
+  R.pass = R.cases.every(c => c.pass);
+})();
+
+</script>
+</body></html>

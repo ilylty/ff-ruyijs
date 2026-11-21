@@ -1,0 +1,31 @@
+<!doctype html><html><head>
+<!-- options: {"require_feature_shell":true} -->
+<meta charset="utf-8">
+</head><body>
+<script>
+(() => {
+  const R = {name: '014_selection_live_range', done: false, cases: []};
+  window.__FEATURE_TEST__ = R;
+  const add = (name, fn) => {
+    try {
+      const detail = fn();
+      R.cases.push({name, pass: detail === true, detail: detail === true ? "" : detail});
+    } catch (e) {
+      R.cases.push({name, pass: false, detail: String(e && e.message || e)});
+    }
+  };
+  document.body.innerHTML = "<div id=a>text</div>";
+const range = document.createRange();
+range.selectNode(document.getElementById("a"));
+const selection = getSelection();
+selection.addRange(range);
+add("selection has one range", () => selection.rangeCount === 1);
+add("getRangeAt returns the same Range", () => selection.getRangeAt(0) === range);
+add("selection type is Range", () => selection.type === "Range");
+add("anchor node is live", () => !!selection.anchorNode);
+  R.done = true;
+  R.pass = R.cases.every(c => c.pass);
+})();
+
+</script>
+</body></html>

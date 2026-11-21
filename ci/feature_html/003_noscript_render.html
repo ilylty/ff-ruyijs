@@ -1,0 +1,32 @@
+<!doctype html><html><head>
+<meta charset="utf-8">
+</head><body>
+<script>
+(() => {
+  const R = {name: '003_noscript_render', done: false, cases: []};
+  window.__FEATURE_TEST__ = R;
+  const add = (name, fn) => {
+    try {
+      const detail = fn();
+      R.cases.push({name, pass: detail === true, detail: detail === true ? "" : detail});
+    } catch (e) {
+      R.cases.push({name, pass: false, detail: String(e && e.message || e)});
+    }
+  };
+  document.body.innerHTML = [
+  "<p id=n><noscript>HIDDEN</noscript></p>",
+  "<p id=s><scr" + "ipt>/*x*/</scr" + "ipt><style>A{}</style></p>"
+].join("");
+const n = document.getElementById("n");
+add("noscript textContent keeps raw text", () => n.textContent === "HIDDEN");
+add("noscript innerText is empty", () => n.innerText === "");
+add("noscript has no offset box", () => document.querySelector("noscript").offsetWidth === 0 &&
+                                      document.querySelector("noscript").offsetHeight === 0);
+add("raw text children have no offset box", () => document.querySelector("script").offsetHeight === 0 &&
+                                                document.querySelector("style").offsetHeight === 0);
+  R.done = true;
+  R.pass = R.cases.every(c => c.pass);
+})();
+
+</script>
+</body></html>

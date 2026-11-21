@@ -1,0 +1,24 @@
+<!doctype html><html><head>
+<!-- options: {"environment":{"RUYIJS_DOM_COOKIE_TRACE":"{DIR}/cookie.jsonl"},"expect_files":["cookie.jsonl"]} -->
+<meta charset="utf-8">
+</head><body>
+<script>
+(() => {
+  const R = {name: '022_cookie_trace', done: false, cases: []};
+  window.__FEATURE_TEST__ = R;
+  const add = (name, fn) => {
+    try {
+      const detail = fn();
+      R.cases.push({name, pass: detail === true, detail: detail === true ? "" : detail});
+    } catch (e) {
+      R.cases.push({name, pass: false, detail: String(e && e.message || e)});
+    }
+  };
+  document.cookie = "trace=1";
+add("cookie write is visible", () => document.cookie.includes("trace=1"));
+  R.done = true;
+  R.pass = R.cases.every(c => c.pass);
+})();
+
+</script>
+</body></html>

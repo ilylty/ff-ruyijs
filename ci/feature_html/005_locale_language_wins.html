@@ -1,0 +1,25 @@
+<!doctype html><html><head>
+<!-- options: {"fingerprint":{"navigator":{"language":"de-DE"},"locale":{"timezone":"Asia/Shanghai","osLocale":"en-US"}}} -->
+<meta charset="utf-8">
+</head><body>
+<script>
+(() => {
+  const R = {name: '005_locale_language_wins', done: false, cases: []};
+  window.__FEATURE_TEST__ = R;
+  const add = (name, fn) => {
+    try {
+      const detail = fn();
+      R.cases.push({name, pass: detail === true, detail: detail === true ? "" : detail});
+    } catch (e) {
+      R.cases.push({name, pass: false, detail: String(e && e.message || e)});
+    }
+  };
+  add("navigator.language is configured", () => navigator.language === "de-DE");
+add("Intl follows differing navigator primary language", () =>
+    Intl.DateTimeFormat().resolvedOptions().locale === "de-DE");
+  R.done = true;
+  R.pass = R.cases.every(c => c.pass);
+})();
+
+</script>
+</body></html>

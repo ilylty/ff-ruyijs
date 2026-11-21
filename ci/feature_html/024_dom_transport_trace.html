@@ -1,0 +1,27 @@
+<!doctype html><html><head>
+<!-- options: {"environment":{"RUYIJS_DOM_TRANSPORT_TRACE":"{DIR}/transport.jsonl"},"expect_files":["transport.jsonl"],"resources":[["https://feature.test/trace-fetch","trace payload",[["Content-Type","text/plain"]]]]} -->
+<meta charset="utf-8">
+</head><body>
+<script>
+(() => {
+  const R = {name: '024_dom_transport_trace', done: false, cases: []};
+  window.__FEATURE_TEST__ = R;
+  const add = (name, fn) => {
+    try {
+      const detail = fn();
+      R.cases.push({name, pass: detail === true, detail: detail === true ? "" : detail});
+    } catch (e) {
+      R.cases.push({name, pass: false, detail: String(e && e.message || e)});
+    }
+  };
+  fetch("/trace-fetch").then(r => r.text()).then(text => {
+  add("fetch response is readable", () => text === "trace payload");
+  R.done = true;
+  R.pass = R.cases.every(c => c.pass);
+});
+  R.done = true;
+  R.pass = R.cases.every(c => c.pass);
+})();
+
+</script>
+</body></html>

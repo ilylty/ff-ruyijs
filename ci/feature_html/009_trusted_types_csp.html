@@ -1,0 +1,31 @@
+<!doctype html><html><head>
+<meta http-equiv="Content-Security-Policy" content="trusted-types allowed">
+<meta charset="utf-8">
+</head><body>
+<script>
+(() => {
+  const R = {name: '009_trusted_types_csp', done: false, cases: []};
+  window.__FEATURE_TEST__ = R;
+  const add = (name, fn) => {
+    try {
+      const detail = fn();
+      R.cases.push({name, pass: detail === true, detail: detail === true ? "" : detail});
+    } catch (e) {
+      R.cases.push({name, pass: false, detail: String(e && e.message || e)});
+    }
+  };
+  add("trustedTypes is installed", () => typeof trustedTypes === "object" && trustedTypes !== null);
+add("CSP allows named policy", () => {
+  try { trustedTypes.createPolicy("allowed", {createHTML: s => s}); return true; }
+  catch (e) { return String(e.message); }
+});
+add("CSP blocks unnamed policy", () => {
+  try { trustedTypes.createPolicy("blocked", {createHTML: s => s}); return "policy was created"; }
+  catch (e) { return /Content-Security-Policy blocked/.test(e.message); }
+});
+  R.done = true;
+  R.pass = R.cases.every(c => c.pass);
+})();
+
+</script>
+</body></html>

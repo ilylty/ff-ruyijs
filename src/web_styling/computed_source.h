@@ -87,6 +87,8 @@ struct ComputedRecord {
   ComputedStyle style;
   std::vector<ruyijs::domain::styling::CssDeclarationValue> standardRows;
   std::unordered_map<std::string, size_t> standardIndex;
+  std::vector<std::string> indexedNames;
+  bool indexedNamesReady = false;
   bool usedResolved = false;
   std::string serializedBlock;
   bool serializedReady = false;

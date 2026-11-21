@@ -10,12 +10,14 @@
 #include "web_styling/condition_environment.h"
 #include "web_styling/realm.h"
 #include "web_styling/page_descriptors.h"
+#include "web_styling/internal.h"
 #include "domain/styling/css_page_value.h"
 #include "domain/styling/css_components.h"
 #include "domain/styling/stylesheet.h"
 #include "document_model/style_port.h"
 #include "document_model/state.h"
 #include "js/Realm.h"
+#include "js/WeakMap.h"
 #include "js/Wrapper.h"
 
 #include <cmath>
@@ -82,6 +84,8 @@ void RebuildStandardRows(ComputedRecord* record) {
   }
   record->serializedReady = false;
   record->serializedBlock.clear();
+  record->indexedNamesReady = false;
+  record->indexedNames.clear();
 }
 
 // A used length as Firefox serializes it: px, up to six significant digits
@@ -190,6 +194,27 @@ const std::string& EnsureSerializedComputed(State& state, JS::HandleObject eleme
     record->serializedReady = true;
   }
   return record->serializedBlock;
+}
+
+static bool CachedComputedView(State& state, JS::HandleObject element,
+                               JS::MutableHandleObject view) {
+  JSContext* cx = state.cx;
+  JS::RootedObject map(cx, state.computedBlocks.views);
+  if (!map) return true;
+  JS::RootedValue key(cx, JS::ObjectValue(*element)), value(cx);
+  if (!JS_WrapValue(cx, &key)) return false;
+  if (!JS::GetWeakMapEntry(cx, map, key, &value)) return false;
+  if (value.isObject()) { view.set(&value.toObject()); return true; }
+  return true;
+}
+
+static bool CacheComputedView(State& state, JS::HandleObject element, JS::HandleObject view) {
+  JSContext* cx = state.cx;
+  JS::RootedObject map(cx, state.computedBlocks.views);
+  if (!map) return true;
+  JS::RootedValue key(cx, JS::ObjectValue(*element)), value(cx, JS::ObjectValue(*view));
+  if (!JS_WrapValue(cx, &key)) return false;
+  return JS::SetWeakMapEntry(cx, map, key, value);
 }
 
 bool ObtainComputedRecord(State& state, JS::HandleObject element,
@@ -427,7 +452,22 @@ bool GetComputedStyle(JSContext* cx, unsigned argc, JS::Value* vp) {
     if (!pseudo) return false;
   }
   JS::RootedObject view(cx);
+  JS::RootedObject key(cx, js::CheckedUnwrapStatic(element));
+  if (!key) key = element;
+  if (!CachedComputedView(state, key, &view)) return false;
+  if (view) { args.rval().setObject(*view); return true; }
   if (!state.NewStyleView("", &view, nullptr, element)) return false;
+  std::shared_ptr<ComputedRecord> record;
+  if (!ObtainComputedRecord(state, element, &record)) return false;
+  EnsureUsedResolved(state, element, record.get());
+  if (!record->indexedNamesReady) {
+    record->indexedNames.reserve(ComputedPropertyCount(*record));
+    for (size_t i = 0; i < ComputedPropertyCount(*record); ++i)
+      record->indexedNames.push_back(ComputedPropertyNameAt(*record, i));
+    record->indexedNamesReady = true;
+  }
+  if (!detail::RefreshIndexedDeclarationNames(cx, view, record->indexedNames)) return false;
+  if (!CacheComputedView(state, key, view)) return false;
   args.rval().setObject(*view);
   return true;
 }

@@ -1,0 +1,27 @@
+<!doctype html><html><head>
+<meta charset="utf-8">
+</head><body>
+<script>
+(() => {
+  const R = {name: '015_shadow_root_point_query', done: false, cases: []};
+  window.__FEATURE_TEST__ = R;
+  const add = (name, fn) => {
+    try {
+      const detail = fn();
+      R.cases.push({name, pass: detail === true, detail: detail === true ? "" : detail});
+    } catch (e) {
+      R.cases.push({name, pass: false, detail: String(e && e.message || e)});
+    }
+  };
+  document.body.innerHTML = "<div id=a></div>";
+const root = document.getElementById("a").attachShadow({mode: "open"});
+root.innerHTML = "<span id=b>shadow</span>";
+add("shadow root exposes elementFromPoint", () => typeof root.elementFromPoint === "function");
+add("shadow root exposes elementsFromPoint", () => typeof root.elementsFromPoint === "function");
+add("shadow content is queryable", () => root.querySelector("#b").textContent === "shadow");
+  R.done = true;
+  R.pass = R.cases.every(c => c.pass);
+})();
+
+</script>
+</body></html>

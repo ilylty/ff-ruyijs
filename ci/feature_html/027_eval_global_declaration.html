@@ -1,0 +1,39 @@
+<!doctype html><html><head>
+<meta charset="utf-8">
+</head><body>
+<script>
+(() => {
+  const R = {name: '027_eval_global_declaration', done: false, cases: []};
+  window.__FEATURE_TEST__ = R;
+  const add = (name, fn) => {
+    try {
+      const detail = fn();
+      R.cases.push({name, pass: detail === true, detail: detail === true ? "" : detail});
+    } catch (e) {
+      R.cases.push({name, pass: false, detail: String(e && e.message || e)});
+    }
+  };
+  const name = "_0c2b88b61aa6e9a834e3a0cb";
+const code = "function " + name + "(s){return function(k){for(var o=new Uint8Array(k.length),i=0;i<k.length;i++)o[i]=k[i]^s.charCodeAt(i%s.length);return o}}";
+const indirectEval = eval;
+const before = typeof window[name];
+const returned = indirectEval.call(window, code);
+const factory = window[name];
+let decoded = null;
+if (typeof factory === "function") {
+  decoded = Array.from(factory("ab")([1, 2, 3]));
+}
+add("global function is undefined before eval", () => before === "undefined");
+add("eval.call(window, code) returns undefined", () => returned === undefined);
+add("declaration is installed on window", () => typeof factory === "function");
+add("installed function is an own window property", () =>
+    Object.prototype.hasOwnProperty.call(window, name));
+add("installed function name matches declaration", () => factory.name === name);
+add("installed function decodes the XOR sample", () =>
+    Array.isArray(decoded) && decoded.join(",") === "96,96,98");
+  R.done = true;
+  R.pass = R.cases.every(c => c.pass);
+})();
+
+</script>
+</body></html>

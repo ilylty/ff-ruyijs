@@ -18,6 +18,7 @@
 #include "domain/styling/external_style_cache.h"
 #include "domain/styling/css_rule_value.h"
 #include "js/RootingAPI.h"
+#include "js/WeakMap.h"
 #include "runtime/web_kit.h"
 #include "web_styling/load_ports.h"
 namespace ruyijs::domain::styling { class StyleSheetAggregate; struct RuleIndexStore; }
@@ -141,6 +142,7 @@ struct State {
     bool ready = false;
     std::unique_ptr<ComputedStyleReader> reader;
     std::unordered_map<uint64_t, std::shared_ptr<ComputedRecord>> records;
+    JS::PersistentRootedObject views;  // WeakMap Element -> live computed view
   };
   uint64_t cssomGeneration = 1;
   ComputedBlockCache computedBlocks;

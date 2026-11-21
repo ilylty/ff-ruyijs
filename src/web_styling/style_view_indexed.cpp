@@ -10,9 +10,8 @@
 #include "js/String.h"
 
 namespace ruyijs::web_styling::detail {
-bool RefreshIndexedDeclaration(JSContext* cx, JS::HandleObject view) {
-  std::string block;
-  if (!ReadViewBlock(cx, view, &block)) return false;
+bool RefreshIndexedDeclarationNames(JSContext* cx, JS::HandleObject view,
+                                     const std::vector<std::string>& names) {
   JS::RootedObject target(cx, js::CheckedUnwrapStatic(view));
   if (!target || !OwnsDeclaration(target)) return WebKit::Fail(cx, "Invalid CSS declaration receiver");
   // Rule views keep the authoritative declaration block on their Rule, while
@@ -21,8 +20,24 @@ bool RefreshIndexedDeclaration(JSContext* cx, JS::HandleObject view) {
   JS::RootedObject indexedTarget(cx, view);
   JS::RootedObject storage(cx, DeclarationStorage(target));
   if (storage != target) indexedTarget = target;
-  const auto rows = ruyijs::domain::styling::CssDeclarations(block);
   uint32_t existing = 0;
+  bool matches = true;
+  while (matches) {
+    JS::RootedId id(cx, JS::PropertyKey::Int(int32_t(existing)));
+    bool present = false;
+    if (!JS_HasOwnPropertyById(cx, indexedTarget, id, &present)) return false;
+    if (!present) break;
+    if (existing >= names.size()) { matches = false; break; }
+    JS::RootedValue current(cx);
+    if (!JS_GetPropertyById(cx, indexedTarget, id, &current)) return false;
+    if (!current.isString()) { matches = false; break; }
+    JS::RootedString text(cx, current.toString());
+    bool same = false;
+    if (!AsciiEquals(cx, text, names[existing].c_str(), &same)) return false;
+    if (!same) { matches = false; break; }
+    ++existing;
+  }
+  if (matches && existing == names.size()) return true;
   while (true) {
     JS::RootedId id(cx, JS::PropertyKey::Int(int32_t(existing)));
     bool present = false;
@@ -32,9 +47,9 @@ bool RefreshIndexedDeclaration(JSContext* cx, JS::HandleObject view) {
     if (!JS_DeleteElement(cx, indexedTarget, existing, removed) || !removed.ok()) return false;
     ++existing;
   }
-  for (uint32_t i = 0; i < rows.size(); ++i) {
+  for (uint32_t i = 0; i < names.size(); ++i) {
     JS::RootedString name(cx, JS_NewStringCopyUTF8N(cx,
-        JS::UTF8Chars(rows[i].name.data(), rows[i].name.size())));
+        JS::UTF8Chars(names[i].data(), names[i].size())));
     JS::RootedValue value(cx);
     if (!name) return false;
     value.setString(name);
@@ -47,5 +62,14 @@ bool RefreshIndexedDeclaration(JSContext* cx, JS::HandleObject view) {
       return false;
   }
   return true;
+}
+bool RefreshIndexedDeclaration(JSContext* cx, JS::HandleObject view) {
+  std::string block;
+  if (!ReadViewBlock(cx, view, &block)) return false;
+  const auto rows = ruyijs::domain::styling::CssDeclarations(block);
+  std::vector<std::string> names;
+  names.reserve(rows.size());
+  for (const auto& row : rows) names.push_back(row.name);
+  return RefreshIndexedDeclarationNames(cx, view, names);
 }
 }  // namespace ruyijs::web_styling::detail

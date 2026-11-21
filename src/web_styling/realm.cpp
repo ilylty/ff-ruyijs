@@ -24,6 +24,7 @@ State::State(JSContext* context, JS::HandleObject global, PageHelpers& helpers,
       positionTryDescriptors(context), highlight(context), highlightRegistry(context), page(context, global), documentObject(context, document),
       documentPrototype(context), shadowPrototype(context, shadow), declarationPrototype(context) {
   const JSAutoRealm realm(cx, global);
+  computedBlocks.views = JS::NewWeakMapObject(cx);
   // Install the Document member at its Firefox IDL path. Installing on the
   // immediate HTMLDocument prototype would shadow user Document supplements.
   JS::RootedValue constructor(cx);

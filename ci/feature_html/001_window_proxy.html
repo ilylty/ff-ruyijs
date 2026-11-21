@@ -1,0 +1,26 @@
+<!doctype html><html><head>
+<meta charset="utf-8">
+</head><body>
+<script>
+(() => {
+  const R = {name: '001_window_proxy', done: false, cases: []};
+  window.__FEATURE_TEST__ = R;
+  const add = (name, fn) => {
+    try {
+      const detail = fn();
+      R.cases.push({name, pass: detail === true, detail: detail === true ? "" : detail});
+    } catch (e) {
+      R.cases.push({name, pass: false, detail: String(e && e.message || e)});
+    }
+  };
+  add("window is globalThis", () => window === globalThis);
+add("window toString tag", () => Object.prototype.toString.call(window) === "[object Window]");
+add("document.defaultView is window", () => document.defaultView === window);
+add("window.document is document", () => window.document === document);
+add("window has a non-Object prototype", () => Object.getPrototypeOf(window) !== Object.prototype);
+  R.done = true;
+  R.pass = R.cases.every(c => c.pass);
+})();
+
+</script>
+</body></html>

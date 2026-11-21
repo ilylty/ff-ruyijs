@@ -1,0 +1,28 @@
+<!doctype html><html><head>
+<meta charset="utf-8">
+</head><body>
+<script>
+(() => {
+  const R = {name: '013_getcomputedstyle_receiver', done: false, cases: []};
+  window.__FEATURE_TEST__ = R;
+  const add = (name, fn) => {
+    try {
+      const detail = fn();
+      R.cases.push({name, pass: detail === true, detail: detail === true ? "" : detail});
+    } catch (e) {
+      R.cases.push({name, pass: false, detail: String(e && e.message || e)});
+    }
+  };
+  document.body.innerHTML = "<div id=a></div>";
+add("computed style returns a declaration view", () =>
+    typeof getComputedStyle(document.getElementById("a")).display === "string");
+add("wrong receiver is rejected", () => {
+  try { getComputedStyle.call({}, document.getElementById("a")); return "accepted"; }
+  catch (e) { return e.name === "TypeError"; }
+});
+  R.done = true;
+  R.pass = R.cases.every(c => c.pass);
+})();
+
+</script>
+</body></html>

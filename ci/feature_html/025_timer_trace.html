@@ -1,0 +1,27 @@
+<!doctype html><html><head>
+<!-- options: {"environment":{"RUYIJS_CF_TRACE":"{DIR}/timer.jsonl"},"expect_files":["timer.jsonl"]} -->
+<meta charset="utf-8">
+</head><body>
+<script>
+(() => {
+  const R = {name: '025_timer_trace', done: false, cases: []};
+  window.__FEATURE_TEST__ = R;
+  const add = (name, fn) => {
+    try {
+      const detail = fn();
+      R.cases.push({name, pass: detail === true, detail: detail === true ? "" : detail});
+    } catch (e) {
+      R.cases.push({name, pass: false, detail: String(e && e.message || e)});
+    }
+  };
+  setTimeout(() => {
+  add("timer ran", () => true);
+  R.done = true;
+  R.pass = R.cases.every(c => c.pass);
+}, 10);
+  R.done = true;
+  R.pass = R.cases.every(c => c.pass);
+})();
+
+</script>
+</body></html>

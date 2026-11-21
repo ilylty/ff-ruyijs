@@ -1,0 +1,24 @@
+<!doctype html><html><head>
+<!-- options: {"fingerprint":{"navigator":{"language":"en-GB"},"locale":{"timezone":"Asia/Shanghai","osLocale":"en-US"}}} -->
+<meta charset="utf-8">
+</head><body>
+<script>
+(() => {
+  const R = {name: '006_locale_os_wins', done: false, cases: []};
+  window.__FEATURE_TEST__ = R;
+  const add = (name, fn) => {
+    try {
+      const detail = fn();
+      R.cases.push({name, pass: detail === true, detail: detail === true ? "" : detail});
+    } catch (e) {
+      R.cases.push({name, pass: false, detail: String(e && e.message || e)});
+    }
+  };
+  add("same primary language keeps OS region", () => navigator.language === "en-GB");
+add("Intl uses OS locale region", () => Intl.DateTimeFormat().resolvedOptions().locale === "en-US");
+  R.done = true;
+  R.pass = R.cases.every(c => c.pass);
+})();
+
+</script>
+</body></html>

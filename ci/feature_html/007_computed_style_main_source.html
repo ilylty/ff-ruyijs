@@ -1,0 +1,26 @@
+<!doctype html><html><head>
+<meta charset="utf-8">
+</head><body>
+<script>
+(() => {
+  const R = {name: '007_computed_style_main_source', done: false, cases: []};
+  window.__FEATURE_TEST__ = R;
+  const add = (name, fn) => {
+    try {
+      const detail = fn();
+      R.cases.push({name, pass: detail === true, detail: detail === true ? "" : detail});
+    } catch (e) {
+      R.cases.push({name, pass: false, detail: String(e && e.message || e)});
+    }
+  };
+  document.body.innerHTML = "<div id=a>text</div>";
+const style = getComputedStyle(document.getElementById("a"));
+add("computed view follows Firefox shape", () => style.length > 85);
+add("computed view exposes indexed names", () => Object.keys(style).length === style.length && style[0] === style.item(0));
+add("named read still works", () => typeof style.color === "string");
+  R.done = true;
+  R.pass = R.cases.every(c => c.pass);
+})();
+
+</script>
+</body></html>

@@ -1,0 +1,30 @@
+<!doctype html><html><head>
+<meta charset="utf-8">
+</head><body>
+<script>
+(() => {
+  const R = {name: '017_postmessage_basic', done: false, cases: []};
+  window.__FEATURE_TEST__ = R;
+  const add = (name, fn) => {
+    try {
+      const detail = fn();
+      R.cases.push({name, pass: detail === true, detail: detail === true ? "" : detail});
+    } catch (e) {
+      R.cases.push({name, pass: false, detail: String(e && e.message || e)});
+    }
+  };
+  let seen = null;
+window.addEventListener("message", event => { seen = event.data; }, true);
+window.postMessage("hello", "*");
+add("window is a PageProxy wrapper", () => Object.prototype.toString.call(window) === "[object Window]");
+setTimeout(() => {
+  add("window message is delivered", () => seen === "hello");
+  R.done = true;
+  R.pass = R.cases.every(c => c.pass);
+}, 20);
+  R.done = true;
+  R.pass = R.cases.every(c => c.pass);
+})();
+
+</script>
+</body></html>

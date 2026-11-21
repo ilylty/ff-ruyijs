@@ -1,0 +1,27 @@
+<!doctype html><html><head>
+<meta charset="utf-8">
+</head><body>
+<script>
+(() => {
+  const R = {name: '002_structured_clone_proxy', done: false, cases: []};
+  window.__FEATURE_TEST__ = R;
+  const add = (name, fn) => {
+    try {
+      const detail = fn();
+      R.cases.push({name, pass: detail === true, detail: detail === true ? "" : detail});
+    } catch (e) {
+      R.cases.push({name, pass: false, detail: String(e && e.message || e)});
+    }
+  };
+  add("structuredClone(window) uses Gecko proxy message", () => {
+  let error;
+  try { structuredClone(window); } catch (e) { error = e; }
+  return !!error && error.name === "DataCloneError" &&
+      /Proxy object could not be cloned/.test(error.message);
+});
+  R.done = true;
+  R.pass = R.cases.every(c => c.pass);
+})();
+
+</script>
+</body></html>

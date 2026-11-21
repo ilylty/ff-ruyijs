@@ -1,0 +1,28 @@
+<!doctype html><html><head>
+<!-- options: {"environment":{"RUYIJS_CF_TRACE":"{DIR}/cf_access.jsonl"},"expect_files":["cf_access.jsonl"]} -->
+<meta charset="utf-8">
+</head><body>
+<script>
+(() => {
+  const R = {name: '020_cf_access_trace', done: false, cases: []};
+  window.__FEATURE_TEST__ = R;
+  const add = (name, fn) => {
+    try {
+      const detail = fn();
+      R.cases.push({name, pass: detail === true, detail: detail === true ? "" : detail});
+    } catch (e) {
+      R.cases.push({name, pass: false, detail: String(e && e.message || e)});
+    }
+  };
+  document.title = "cf-access";
+const d = document.createElement("div");
+d.id = "target";
+document.body.appendChild(d);
+void d.id;
+add("page ran", () => document.title === "cf-access");
+  R.done = true;
+  R.pass = R.cases.every(c => c.pass);
+})();
+
+</script>
+</body></html>

@@ -1,0 +1,53 @@
+<!doctype html><html><head>
+<meta charset="utf-8">
+</head><body>
+<script>
+(() => {
+  const R = {name: '028_wasm_streaming_response_patch', done: false, cases: []};
+  window.__FEATURE_TEST__ = R;
+  const add = (name, fn) => {
+    try {
+      const detail = fn();
+      R.cases.push({name, pass: detail === true, detail: detail === true ? "" : detail});
+    } catch (e) {
+      R.cases.push({name, pass: false, detail: String(e && e.message || e)});
+    }
+  };
+  const moduleBytes = new Uint8Array([
+  0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00
+]);
+function wasmResponse(bytes) {
+  return new Response(bytes, {headers: {"Content-Type": "application/wasm"}});
+}
+add("instantiateStreaming(Response) returns a Promise", () => {
+  const pending = WebAssembly.instantiateStreaming(wasmResponse(moduleBytes), {});
+  return pending && typeof pending.then === "function";
+});
+function finish() {
+  R.done = true;
+  R.pass = R.cases.every(c => c.pass);
+}
+WebAssembly.instantiateStreaming(wasmResponse(moduleBytes), {}).then(result => {
+  add("instantiate returns a WebAssembly.Module", () => result.module instanceof WebAssembly.Module);
+  add("instantiate returns a WebAssembly.Instance", () => result.instance instanceof WebAssembly.Instance);
+  return WebAssembly.instantiateStreaming(
+      Promise.resolve(wasmResponse(moduleBytes)), {});
+}).then(result => {
+  add("Promise<Response> is accepted", () =>
+      result.module instanceof WebAssembly.Module &&
+      result.instance instanceof WebAssembly.Instance);
+  const bad = new Response(moduleBytes, {headers: {"Content-Type": "text/plain"}});
+  return WebAssembly.instantiateStreaming(bad, {}).then(
+      () => add("wrong MIME is rejected", () => "resolved"),
+      error => add("wrong MIME is rejected", () =>
+          /MIME type/.test(String(error && error.message || error))));
+}).then(finish, error => {
+  add("Response path rejects", () => String(error && error.message || error));
+  finish();
+});
+  R.done = true;
+  R.pass = R.cases.every(c => c.pass);
+})();
+
+</script>
+</body></html>
