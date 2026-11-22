@@ -217,88 +217,6 @@ static bool EvalGlobalFix(JSContext* cx, unsigned argc, JS::Value* vp) {
   return true;
 }
 
-// Chromium's V8/Blink integration installs SetWasmStreamingCallback. The
-// embedder accepts a Response, validates it, then feeds its body to V8. The
-// standalone shell's consume callback only accepts BufferSource or
-// StreamCacheEntryObject, so wasm-bindgen's `instantiateStreaming(Response)`
-// throws synchronously and never reaches its Promise fallback. Install the
-// same browser-side Response handling on the page's WebAssembly namespace.
-static bool InstallWasmResponseStreaming(JSContext* cx, JS::HandleObject page) {
-  JSAutoRealm realm(cx, page);
-  JS::RootedValue wasm(cx);
-  if (!JS_GetProperty(cx, page, "WebAssembly", &wasm)) return false;
-  if (!wasm.isObject()) return true;
-  static const char source[] = R"js((function() {
-  const wasm = WebAssembly;
-  if (!wasm || typeof wasm.instantiate !== "function" ||
-      typeof wasm.instantiateStreaming !== "function") return;
-  const descriptor = Object.getOwnPropertyDescriptor(wasm, "instantiateStreaming");
-  if (!descriptor || !descriptor.configurable) return;
-  const original = descriptor.value;
-  if (typeof original !== "function") return;
-
-  function isResponse(value) {
-    return !!value && typeof value === "object" &&
-        typeof value.then !== "function" &&
-        typeof value.arrayBuffer === "function";
-  }
-  function isPromise(value) {
-    return !!value && typeof value === "object" && typeof value.then === "function";
-  }
-  function checkResponse(response) {
-    if (!isResponse(response)) {
-      throw new TypeError("Argument 1 must be a Response or Promise<Response> object");
-    }
-    if (response.ok === false ||
-        (typeof response.status === "number" &&
-         (response.status < 200 || response.status > 299))) {
-      throw new TypeError("HTTP status code is not ok");
-    }
-    const headers = response.headers;
-    const mime = headers && typeof headers.get === "function"
-        ? headers.get("Content-Type") : null;
-    if (typeof mime !== "string" || mime.toLowerCase() !== "application/wasm") {
-      throw new TypeError("Incorrect response MIME type. Expected 'application/wasm'.");
-    }
-    if (response.bodyUsed || (response.body && response.body.locked)) {
-      throw new TypeError("Cannot compile WebAssembly.Module from an already read Response");
-    }
-  }
-
-  function instantiateStreaming(source, imports, options) {
-    if (isResponse(source) || isPromise(source)) {
-      const hasOptions = arguments.length > 2;
-      return Promise.resolve(source).then(function(response) {
-        checkResponse(response);
-        return response.arrayBuffer().then(function(bytes) {
-          if (!bytes || bytes.byteLength === 0) {
-            throw new WebAssembly.CompileError("Empty WebAssembly module");
-          }
-          return hasOptions
-              ? WebAssembly.instantiate(bytes, imports, options)
-              : WebAssembly.instantiate(bytes, imports);
-        });
-      });
-    }
-    return Reflect.apply(original, wasm, arguments);
-  }
-  Object.defineProperty(instantiateStreaming, "length",
-                        {value: original.length, configurable: true});
-  Object.defineProperty(instantiateStreaming, "name",
-                        {value: original.name, configurable: true});
-  descriptor.value = instantiateStreaming;
-  Object.defineProperty(wasm, "instantiateStreaming", descriptor);
-})();
-)js";
-  JS::SourceText<mozilla::Utf8Unit> sourceText;
-  JS::CompileOptions options(cx);
-  options.setFileAndLine("ruyijs-wasm-streaming.js", 1);
-  JS::RootedValue result(cx);
-  return sourceText.init(cx, source, std::strlen(source),
-                         JS::SourceOwnership::Borrowed) &&
-         JS::Evaluate(cx, options, sourceText, &result);
-}
-
 JSObject* CreatePage(JSContext* cx, JS::HandleObject sameOrigin, bool withWindowProxy) {
   JS::RealmOptions options;
   if (sameOrigin) options.creationOptions().setExistingCompartment(sameOrigin);
@@ -321,7 +239,6 @@ JSObject* CreatePage(JSContext* cx, JS::HandleObject sameOrigin, bool withWindow
       js::ruyijs_window_proxy::SetWindowProxy(cx, page, proxy);
     }
     if (!JS::InitRealmStandardClasses(cx)) return nullptr;
-    if (!InstallWasmResponseStreaming(cx, page)) return nullptr;
     {
       JS::RootedValue original(cx);
       if (!JS_GetProperty(cx, page, "eval", &original) || !original.isObject())

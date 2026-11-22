@@ -131,11 +131,46 @@ def check_wasm_trace():
         check("wasm trace has wasm records", "wasm" in types, sorted(types))
 
 
+def check_native_instantiate_streaming():
+    """WebAssembly.instantiateStreaming stays native; host consumes Response."""
+    with Context(shell=SHELL) as ctx:
+        ctx.load_page(URL, PAGE)
+        text = ctx.eval("String(WebAssembly.instantiateStreaming)")
+        check("instantiateStreaming is native", "[native code]" in text, text[:80])
+        ctx.eval("""
+          globalThis.__wasm = 'pending';
+          (() => {
+            const bytes = new Uint8Array([0,97,115,109,1,0,0,0]);
+            const headers = {'Content-Type': 'application/wasm'};
+            WebAssembly.instantiateStreaming(new Response(bytes, {headers}), {})
+              .then(result => {
+                if (!(result.module instanceof WebAssembly.Module)) {
+                  globalThis.__wasm = 'bad-module'; return;
+                }
+                const wrong = new Response(bytes,
+                    {headers: {'Content-Type': 'text/plain'}});
+                return WebAssembly.instantiateStreaming(wrong, {}).then(
+                  () => { globalThis.__wasm = 'wrong-mime-resolved'; },
+                  error => { globalThis.__wasm =
+                      /MIME type/.test(String(error && error.message))
+                        ? 'ok' : 'wrong-mime-error:' + error.message; });
+              }, error => { globalThis.__wasm = 'error:' + error.message; });
+          })()
+        """)
+        for _ in range(100):
+            value = ctx.eval("globalThis.__wasm")
+            if value != "pending":
+                break
+            ctx.advance(10)
+    check("native instantiateStreaming(Response) works", value == "ok", value)
+
+
 def main():
     check_proxy()
     check_call_trace()
     check_eval_trace()
     check_wasm_trace()
+    check_native_instantiate_streaming()
     print("engine patch checks passed")
     return 0
 

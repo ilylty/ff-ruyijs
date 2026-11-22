@@ -52,7 +52,7 @@ static void RuyijsSessionMain(RuyijsSessionInput input) {
     JS_SetSecurityCallbacks(cx, &ShellPrincipals::securityCallbacks);
     JS_SetWrapObjectCallbacks(cx, &ShellWrapObjectCallbacks);
     JS_AddInterruptCallback(cx, ShellInterruptCallback);
-    JS::InitConsumeStreamCallback(cx, ConsumeBufferSource, ReportStreamError);
+    ruyijs::wasm_stream::InitForContext(cx);
     JS::SetPromiseRejectionTrackerCallback(
         cx, ForwardingPromiseRejectionTrackerCallback);
     JS::dbg::SetDebuggerMallocSizeOf(cx, moz_malloc_size_of);
@@ -125,6 +125,7 @@ def generate(donor, root, directory):
                           '/* JS shell. */\n#include "runtime/runtime.h"\n'
                           '#include "runtime/exception_capture.h"\n'
                           '#include "runtime/arguments.h"\n'
+                          '#include "runtime/wasm_stream.h"\n'
                           '#include "runtime/pro_standalone_trace.h"')
     source = replace_once(source, "  sArgc = argc;\n  sArgv = argv;",
                           "  ruyijs::Arguments productArguments;\n"
@@ -149,6 +150,13 @@ def generate(donor, root, directory):
     source = replace_once(
         source, "static int Shell(JSContext* cx, OptionParser* op) {",
         SESSION_THREADS + "static int Shell(JSContext* cx, OptionParser* op) {")
+    # The main context also needs the Response-aware stream callback; the
+    # shell's ConsumeBufferSource rejects a page's Response before any bytes
+    # reach SpiderMonkey's streaming compiler.
+    source = replace_once(
+        source,
+        "  JS::InitConsumeStreamCallback(cx, ConsumeBufferSource, ReportStreamError);",
+        "  ruyijs::wasm_stream::InitForContext(cx);")
     hook = '!op.addBoolOption(\'i\', "shell", "Enter prompt after running code")'
     options = ('!op.addBoolOption(\'\\0\', "ruyijs-runtime", '
                '"Run in the ruyijs page realm") ||\n      '
