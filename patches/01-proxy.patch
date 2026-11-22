@@ -1,0 +1,111 @@
+diff --git a/js/src/vm/RuyijsWindowProxy.cpp b/js/src/vm/RuyijsWindowProxy.cpp
+new file mode 100644
+index 0000000000..e056a43573
+--- /dev/null
++++ b/js/src/vm/RuyijsWindowProxy.cpp
+@@ -0,0 +1,35 @@
++// ruyijs WindowProxy association. See RuyijsWindowProxy.h.
++//
++// Kept deliberately independent of vm/StandaloneTrace.h so the proxy fix can
++// be applied to a Firefox source tree that has no trace patch.
++
++#include "vm/RuyijsWindowProxy.h"
++
++#include "vm/GlobalObject.h"
++#include "vm/Runtime.h"
++
++namespace js {
++namespace ruyijs_window_proxy {
++
++void SetWindowProxy(JSContext* cx, JS::Handle<JSObject*> global,
++                    JS::Handle<JSObject*> proxy) {
++  if (!global || !proxy) {
++    return;
++  }
++  if (!(JS::GetClass(global)->flags & JSCLASS_IS_GLOBAL)) {
++    return;
++  }
++  GlobalObject& g = global->as<GlobalObject>();
++  if (g.maybeWindowProxy()) {
++    return;
++  }
++  g.setWindowProxy(proxy);
++  g.lexicalEnvironment().setWindowProxyThisObject(proxy);
++}
++
++const JSClass* WindowProxyClass(JSContext* cx) {
++  return cx ? cx->runtime()->maybeWindowProxyClass() : nullptr;
++}
++
++}  // namespace ruyijs_window_proxy
++}  // namespace js
+diff --git a/js/src/vm/RuyijsWindowProxy.h b/js/src/vm/RuyijsWindowProxy.h
+new file mode 100644
+index 0000000000..69ee691c08
+--- /dev/null
++++ b/js/src/vm/RuyijsWindowProxy.h
+@@ -0,0 +1,52 @@
++// ruyijs WindowProxy association.
++//
++// SpiderMonkey owns the WindowProxy class (registered by the shell through
++// js::SetWindowProxyClass) and the GlobalObject slot, but a host-created Proxy
++// is not associated with a realm global through the public API. These helpers
++// are the small glue ff-ruyijs needs so `globalThis`, global `this` and
++// `window` resolve to the host's Page WindowProxy.
++//
++// This file has no dependency on the standalone trace patch: it can be applied
++// to a clean Firefox source tree on its own. The js::standalone_trace names at
++// the bottom are compatibility aliases for older host code; they forward to
++// the same functions and do not require vm/StandaloneTrace.h.
++
++#ifndef js_vm_RuyijsWindowProxy_h
++#define js_vm_RuyijsWindowProxy_h
++
++#include "js/TypeDecls.h"
++
++class JS_PUBLIC_API JSContext;
++
++namespace js {
++namespace ruyijs_window_proxy {
++
++// Associate a host-created Proxy with |global| as its WindowProxy. This
++// bypasses js::SetWindowProxy's IsWindowProxy assertion because the class is
++// registered by the embedder; the object must still be a real Proxy created
++// with the runtime's WindowProxy class. Must be called before
++// InitRealmStandardClasses resolves globalThis.
++void SetWindowProxy(JSContext* cx, JS::Handle<JSObject*> global,
++                    JS::Handle<JSObject*> proxy);
++
++// The JSClass the shell registered via js::SetWindowProxyClass. A host-created
++// Proxy using this class is a real WindowProxy (js::IsWindowProxy true), so the
++// engine transparently unwraps it wherever a Window is expected.
++const JSClass* WindowProxyClass(JSContext* cx);
++
++}  // namespace ruyijs_window_proxy
++
++// Compatibility aliases for host code written against the old trace header.
++namespace standalone_trace {
++inline void SetRuyijsWindowProxy(JSContext* cx, JS::Handle<JSObject*> global,
++                                 JS::Handle<JSObject*> proxy) {
++  ruyijs_window_proxy::SetWindowProxy(cx, global, proxy);
++}
++inline const JSClass* RuyijsWindowProxyClass(JSContext* cx) {
++  return ruyijs_window_proxy::WindowProxyClass(cx);
++}
++}  // namespace standalone_trace
++
++}  // namespace js
++
++#endif  // js_vm_RuyijsWindowProxy_h
+diff --git a/js/src/vm/moz.build b/js/src/vm/moz.build
+index 076588a484..bd3739b4ca 100644
+--- a/js/src/vm/moz.build
++++ b/js/src/vm/moz.build
+@@ -87,6 +87,7 @@ UNIFIED_SOURCES += [
+     "RegExpStatics.cpp",
+     "Runtime.cpp",
+     "RuntimeFuses.cpp",
++    "RuyijsWindowProxy.cpp",
+     "SavedStacks.cpp",
+     "Scope.cpp",
+     "SelfHosting.cpp",

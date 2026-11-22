@@ -29,12 +29,16 @@ inline void LeaveCall(JSContext* cx, const JS::CallArgs& args, const CallState& 
 inline void ConsoleCall(JSContext* cx, const char* method, JS::CallArgs& args) {
   js::standalone_trace::TraceConsoleCall(cx, method, args);
 }
+inline void ArmHeavyTrace() {
+  js::standalone_trace::SetHeavyTraceArmed(true);
+}
 #else
 struct CallState {};
 inline bool Enabled() { return false; }
 inline void EnterCall(JSContext*, const JS::CallArgs&, bool, const char*, CallState*) {}
 inline void LeaveCall(JSContext*, const JS::CallArgs&, const CallState&, bool) {}
 inline void ConsoleCall(JSContext*, const char*, JS::CallArgs&) {}
+inline void ArmHeavyTrace() {}
 #endif
 }
 }

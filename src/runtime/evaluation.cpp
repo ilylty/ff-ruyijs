@@ -22,7 +22,7 @@
 #include "js/Proxy.h"
 #include "js/Wrapper.h"
 #include "js/friend/WindowProxy.h"
-#include "vm/StandaloneTrace.h"
+#include "vm/RuyijsWindowProxy.h"
 
 namespace ruyijs {
 namespace {
@@ -103,7 +103,7 @@ static const PageWindowProxyHandler kPageWindowProxyHandler;
 static JSObject* NewPageWindowProxy(JSContext* cx, JS::HandleObject global) {
   JSAutoRealm realm(cx, global);
   js::WrapperOptions options;
-  if (const JSClass* clasp = js::standalone_trace::RuyijsWindowProxyClass(cx))
+  if (const JSClass* clasp = js::ruyijs_window_proxy::WindowProxyClass(cx))
     options.setClass(clasp);
   JSObject* proxy = js::Wrapper::New(cx, global, &js::Wrapper::singleton, options);
   return proxy;
@@ -318,7 +318,7 @@ JSObject* CreatePage(JSContext* cx, JS::HandleObject sameOrigin, bool withWindow
     if (withWindowProxy) {
       JS::RootedObject proxy(cx, NewPageWindowProxy(cx, page));
       if (!proxy) return nullptr;
-      js::standalone_trace::SetRuyijsWindowProxy(cx, page, proxy);
+      js::ruyijs_window_proxy::SetWindowProxy(cx, page, proxy);
     }
     if (!JS::InitRealmStandardClasses(cx)) return nullptr;
     if (!InstallWasmResponseStreaming(cx, page)) return nullptr;

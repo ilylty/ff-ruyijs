@@ -8,7 +8,7 @@
 // difference instead of a missing key.
 
 #include "runtime/http_trace.h"
-#include "vm/StandaloneTrace.h"
+#include "runtime/standalone_trace.h"
 
 #include <chrono>
 #include <cstdint>
@@ -521,7 +521,7 @@ void EndRequest(uint64_t id, int status, const std::string& statusText,
   // boot makes the page too slow to ever reach this packet.
   if (const char* trigger = std::getenv("RUYIJS_TRACE_HEAVY_URL")) {
     if (*trigger && url.find(trigger) != std::string::npos) {
-      js::standalone_trace::SetHeavyTraceArmed(true);
+      trace::ArmHeavyTrace();
     }
   }
 
