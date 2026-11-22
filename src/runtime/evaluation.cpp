@@ -1,6 +1,7 @@
 #include "runtime/runtime.h"
 #include "runtime/page_reference.h"
 #include "runtime/exception_capture.h"
+#include "runtime/page_helpers.h"
 #include "execution_scheduling/realm.h"
 #include "browser_environment/cross_origin.h"
 #include "jsapi.h"
@@ -152,13 +153,18 @@ static bool EvalGlobalFix(JSContext* cx, unsigned argc, JS::Value* vp) {
   JS::RootedObject global(cx, JS::CurrentGlobalOrNull(cx));
   if (args.thisv().isObject()) global = &args.thisv().toObject();
   if (!callee || !global) return false;
+  // An iframe's contentWindow is a WindowProxy. Indirect eval uses the
+  // current realm, not the receiver's, so enter the target's realm before
+  // calling the original eval; otherwise w.eval(code) declares on the caller.
+  JS::RootedObject target(cx, UnwrapPageProxy(global));
+  JSAutoRealm realm(cx, target);
   JS::RootedValue original(cx);
   if (!JS_GetProperty(cx, callee, "__ruyijsOriginalEval", &original) ||
       !original.isObject()) {
     return false;
   }
   JS::RootedValue result(cx);
-  if (!JS_CallFunctionValue(cx, global, original,
+  if (!JS_CallFunctionValue(cx, target, original,
                             JS::HandleValueArray::fromMarkedLocation(argc, args.array()),
                             &result)) {
     return false;

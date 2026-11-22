@@ -21,6 +21,8 @@ constexpr uint32_t kNodeAdoptedStylesSlot = 11;
 constexpr uint32_t kNodeShadowAssociationSlot = 9;
 constexpr uint32_t kNodeShadowScopeSlot = 10;
 constexpr uint32_t kNodeFragmentDirectiveSlot = 12;
+// HTMLIFrameElement.sandbox, [SameObject] like Element.part (slot 5).
+constexpr uint32_t kNodeSandboxSlot = 13;
 struct Walker;
 struct Range;
 struct State;
@@ -421,6 +423,13 @@ State* FunctionState(const JS::CallArgs&);
 // strict identity rather than a prototype-chain search.
 bool IsGlobalReceiver(State&, const JS::CallArgs&);
 int32_t FunctionSlot(const JS::CallArgs&);
+// [PutForwards=value] for a DOMTokenList attribute: the setter runs |getter|
+// (installed with the same function slot) and assigns the list's value.
+bool ForwardTokenValue(JSContext*, unsigned, JS::Value*, JSNative getter);
+template <JSNative Getter>
+bool PutForwardsValue(JSContext* cx, unsigned argc, JS::Value* vp) {
+  return ForwardTokenValue(cx, argc, vp, Getter);
+}
 Wrapper* Receiver(State&, const JS::CallArgs&, NodeKind* = nullptr);
 Wrapper* DocumentReceiver(JSContext*, JS::HandleObject, const JS::CallArgs* args = nullptr);
 bool DocumentImport(JSContext*, unsigned, JS::Value*);

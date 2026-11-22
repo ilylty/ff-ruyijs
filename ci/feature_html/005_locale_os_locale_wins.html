@@ -4,7 +4,7 @@
 </head><body>
 <script>
 (() => {
-  const R = {name: '005_locale_language_wins', done: false, cases: []};
+  const R = {name: '005_locale_os_locale_wins', done: false, cases: []};
   window.__FEATURE_TEST__ = R;
   const add = (name, fn) => {
     try {
@@ -15,8 +15,8 @@
     }
   };
   add("navigator.language is configured", () => navigator.language === "de-DE");
-add("Intl follows differing navigator primary language", () =>
-    Intl.DateTimeFormat().resolvedOptions().locale === "de-DE");
+add("Intl uses OS regional locale, not navigator.language", () =>
+    Intl.DateTimeFormat().resolvedOptions().locale === "en-US");
   R.done = true;
   R.pass = R.cases.every(c => c.pass);
 })();

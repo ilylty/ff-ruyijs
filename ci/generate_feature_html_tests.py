@@ -77,10 +77,10 @@ add("mozInnerScreenX uses frame origin", () => mozInnerScreenX === 38);
 add("mozInnerScreenY uses frame origin", () => mozInnerScreenY === 232);
 ''', r'''{"fingerprint":{"window":{"outerWidth":1200,"outerHeight":800,"screenX":30,"screenY":40},"viewport":{"width":1000,"height":600,"devicePixelRatio":1}}}''')
 
-page("005_locale_language_wins", r'''
+page("005_locale_os_locale_wins", r'''
 add("navigator.language is configured", () => navigator.language === "de-DE");
-add("Intl follows differing navigator primary language", () =>
-    Intl.DateTimeFormat().resolvedOptions().locale === "de-DE");
+add("Intl uses OS regional locale, not navigator.language", () =>
+    Intl.DateTimeFormat().resolvedOptions().locale === "en-US");
 ''', r'''{"fingerprint":{"navigator":{"language":"de-DE"},"locale":{"timezone":"Asia/Shanghai","osLocale":"en-US"}}}''')
 
 page("006_locale_os_wins", r'''

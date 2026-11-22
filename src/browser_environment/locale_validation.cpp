@@ -84,31 +84,11 @@ bool State::ValidateLocale(std::vector<Change>* changes) {
 }
 void State::ApplyLocale(const std::vector<Change>& changes) {
   JS::Realm* realm = JS::GetObjectRealmOrNull(page);
-  // The realm's Intl default locale is the reconciled value, not locale.osLocale
-  // alone: a page whose navigator.language differs from the OS language must
-  // not read one locale from navigator.language and another from Intl. Read the
-  // effective pair once, before the changes go in, and only write the locale
-  // when either side moved (a locale-only change still needs the new value).
-  bool update = false;
   for (const auto& change : changes) {
-    if ((change.kind == Kind::Locale && change.field == 1) ||
-        (change.kind == Kind::Navigator && change.field == 9))
-      update = true;
+    if (change.kind == Kind::Locale && change.field == 1)
+      JS::SetRealmLocaleOverride(realm, change.value.text.empty() ? nullptr : change.value.text.c_str());
     if (change.kind == Kind::Locale && change.field == 0)
       JS::SetRealmTimezoneOverride(realm, change.value.text.c_str());
   }
-  if (!update) return;
-  const std::string locale = BindLocale();
-  JS::SetRealmLocaleOverride(realm, locale.empty() ? nullptr : locale.c_str());
-}
-std::string State::BindLocale() {
-  // A child realm reads its creator's model (State::shared), exactly as it reads
-  // navigator.language and locale.osLocale.
-  const Model& source = shared ? shared->model : model;
-  FieldValue language, osLocale;
-  if (!source.Read(Kind::Navigator, 9, &language) ||
-      !source.Read(Kind::Locale, 1, &osLocale))
-    return std::string();
-  return ReconcileLocale(cx, osLocale.text, language.text);
 }
 }

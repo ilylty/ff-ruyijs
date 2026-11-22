@@ -50,6 +50,11 @@ struct State final {
   std::shared_ptr<std::map<std::string, bool>> agentClusters = std::make_shared<std::map<std::string, bool>>();
   // This document's own answer (window.originAgentCluster).
   bool originKeyed = false;
+  // The document whose buffered owner groups (webgl, webgpu, permissions,
+  // geolocation, speech, media and kOwnerGroups) this one starts with: the
+  // creator of an iframe, or the document a later top-level document replaces.
+  // Inherit() clones them into this realm once and clears it.
+  const State* groupSource = nullptr;
   // Runtime document state; never delegated through shared or fingerprint Model.
   domain::browser_environment::UserActivation activation;
   double (*activationClock)(void*) = nullptr;
@@ -130,6 +135,10 @@ struct State final {
   // so this adapter never keeps an iframe list of its own.
   size_t (*frameCount)(void*) = nullptr;
   void* frameCountContext = nullptr;
+  // The index-th child WindowProxy as the current caller sees it (window[i]);
+  // the cross-origin view answers indexed and named child access through it.
+  bool (*frameWindow)(void*, size_t, JS::MutableHandleValue) = nullptr;
+  void* frameWindowContext = nullptr;
   WindowNamePort windowNamePort = nullptr;
   void* windowNameContext = nullptr;
   // Content viewport source. Top-level reads the profile; child realms use the
@@ -277,6 +286,7 @@ struct State final {
   bool EffectiveSpeech(JS::MutableHandleObject result);
   bool PushSpeech();
   bool Inherit();
+  bool InheritGroups(const State& source);
   bool Apply(JS::HandleObject profile, bool complete);
   bool ApplyChanges(std::vector<Change>& changes);
   bool ApplyWorkerProfile(std::string_view profile);
@@ -294,12 +304,6 @@ struct State final {
   bool IsCrossOriginIsolated() const;
   bool ValidateLocale(std::vector<Change>* changes);
   void ApplyLocale(const std::vector<Change>& changes);
-  // The reconciled Intl default locale (locale_binding.cpp): the OS locale when
-  // its primary language subtag matches navigator.language's, otherwise
-  // navigator.language, with the host OS locale standing in for an unset
-  // locale.osLocale. Applied to this realm by ApplyLocale and Inherit, and to a
-  // Worker realm through its startup profile.
-  std::string BindLocale();
   bool Read(Kind kind, uint32_t field, ValueType type, JS::MutableHandleValue result);
   bool ReadViewport(double* width, double* height);
   // Existing Navigator/CSS capability and the independent Window exposure input.
@@ -328,12 +332,6 @@ const JSClass* ClassFor(Kind kind, bool worker = false);
 // frame's Navigator.prototype reads the top window's navigator, as a Firefox
 // binding works on its receiver's native object rather than the caller's realm.
 State* ReceiverState(const JS::CallArgs& args, const JSClass* clasp);
-// The reconciled Intl default locale (locale_binding.cpp): `osLocale` when its
-// primary language subtag matches `navigatorLanguage`'s (it carries the region),
-// `navigatorLanguage` when they differ, and "" only when both are empty and the
-// host has no default locale. An empty `osLocale` means the host OS locale.
-std::string ReconcileLocale(JSContext* cx, const std::string& osLocale,
-                            const std::string& navigatorLanguage);
 // Install-time interface and member names of one registered instance accessor,
 // e.g. InterfaceName(Kind::Navigator) -> "Navigator" and
 // MemberName(Kind::Navigator, 2) -> "appCodeName". Static names only, so the
