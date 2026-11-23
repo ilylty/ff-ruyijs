@@ -129,6 +129,26 @@ def resolve_shell(shell):
 def process_environment(shell):
     """The environment a shell process starts with, without os.environ changes."""
     child_environment = dict(os.environ)
+    if sys.platform == "win32":
+        # The native helper resolution (NeckoPythonPath) checks
+        # RUYIJS_NECKO_PYTHON first. A dist-only shell has no vendor tree, so
+        # point it at the interpreter running ruyijs, which already carries
+        # ruyijs_necko. Honour an existing override.
+        if not child_environment.get("RUYIJS_NECKO_PYTHON"):
+            runtime_root = shell.parent.parent
+            bundled = runtime_root / "vendor" / "necko-derived" / "python" / "python.exe"
+            if not bundled.is_file():
+                # The helper starts with -I -B, so the interpreter running
+                # this client cannot import ruyijs_necko from its venv. Use
+                # the Python shipped beside the installed ruyijs package.
+                package_root = Path(__file__).resolve().parent
+                for root in (package_root / "_runtime", package_root.parent,
+                             package_root.parent.parent):
+                    candidate = (root / "vendor" / "necko-derived" /
+                                 "python" / "python.exe")
+                    if candidate.is_file():
+                        child_environment["RUYIJS_NECKO_PYTHON"] = str(candidate)
+                        break
     if sys.platform == "darwin":
         runtime_root = shell.parent.parent
         explicit_python = child_environment.get("RUYIJS_NECKO_PYTHON")

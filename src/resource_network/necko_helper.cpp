@@ -227,17 +227,43 @@ bool NeckoHelper::Finish(ULONGLONG deadline) {
 #else
 #include "resource_network/necko_helper.h"
 
+#include <cstdlib>
+
 namespace ruyijs::resource_network {
+namespace {
+bool FileExists(const std::wstring& path) {
+  const DWORD attributes = GetFileAttributesW(path.c_str());
+  return attributes != INVALID_FILE_ATTRIBUTES && !(attributes & FILE_ATTRIBUTE_DIRECTORY);
+}
+}
 bool NeckoPythonPath(std::wstring* python) {
+  // Match the POSIX branch: an explicit interpreter wins, and the file must
+  // exist. A dist-only shell has no vendor/necko-derived beside it, so the
+  // fixed path below used to be reported as usable and only failed later as
+  // a silent status=0 navigation.
+  if (const char* overridePath = std::getenv("RUYIJS_NECKO_PYTHON")) {
+    std::wstring wide;
+    const int needed = MultiByteToWideChar(CP_UTF8, 0, overridePath, -1, nullptr, 0);
+    if (needed > 0) {
+      wide.resize(static_cast<size_t>(needed) - 1);
+      MultiByteToWideChar(CP_UTF8, 0, overridePath, -1, wide.data(), needed);
+      if (FileExists(wide)) {
+        *python = std::move(wide);
+        return true;
+      }
+    }
+  }
   wchar_t self[MAX_PATH];
   const DWORD length = GetModuleFileNameW(nullptr, self, MAX_PATH);
   if (!length || length >= MAX_PATH) return false;
-  python->assign(self, length);
-  auto slash = python->find_last_of(L"\\/");
+  std::wstring path(self, length);
+  auto slash = path.find_last_of(L"\\/");
   if (slash == std::wstring::npos || !slash) return false;
-  slash = python->find_last_of(L"\\/", slash - 1);
+  slash = path.find_last_of(L"\\/", slash - 1);
   if (slash == std::wstring::npos) return false;
-  *python = python->substr(0, slash) + L"\\vendor\\necko-derived\\python\\python.exe";
+  path = path.substr(0, slash) + L"\\vendor\\necko-derived\\python\\python.exe";
+  if (!FileExists(path)) return false;
+  *python = std::move(path);
   return true;
 }
 }

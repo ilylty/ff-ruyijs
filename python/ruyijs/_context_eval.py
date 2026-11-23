@@ -12,6 +12,10 @@ class EvaluationControl:
         """Evaluate code; explicit to_py selects ruyijs's public value conversion.
 
         Without to_py the original typed snapshot protocol is preserved.
+        In that mode a JavaScript ``undefined`` result (for example
+        ``element.click()``) is returned as a ``ruyijs._values._Undefined``
+        sentinel, which ``json.dumps`` cannot serialize. Use ``to_py=True``
+        when the result is written to JSON, or check/convert the value first.
         to_py=False keeps DOM/class/function references; True labels top-level
         references. Ordinary containers become Python values in both modes.
 
