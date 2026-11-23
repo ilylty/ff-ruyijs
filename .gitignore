@@ -75,6 +75,7 @@ __pycache__/
 /t1.out
 
 # Local tooling and editors
+.venv/
 .claude/
 .vscode/
 .idea/
